@@ -8,7 +8,8 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-await connectDB(); // Ensure the database connection is established before handling requests
+// Ensure the database connection is established before handling requests
+await connectDB();
 
 app.use(
     cors({
@@ -22,6 +23,10 @@ app.use(
 app.get('/', (req, res) => {
     res.send('Hello, World!');
 });
+
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/complaints", complaintRoutes);
+
 
 
 app.listen(process.env.PORT || 5000, () => {
