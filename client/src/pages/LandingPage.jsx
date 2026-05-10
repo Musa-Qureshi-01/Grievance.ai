@@ -10,20 +10,19 @@ import { TrustTransparency } from "../components/landingpage/trust-transparency"
 
 const LandingPage = () => {
     return (
-    
-    <div className="text-center bg-gray-900 text-white p-8">
 
-    <Navbar/>
-    <HeroSection/>
-    <ComplaintSubmission/>
-    <AIPipeline/>
-    <DashboardPreview/>
-    <OfficerWorkflow/>
-    <TrustTransparency/>
-
-    <Footer/>
-    
-     </div>
+        <div className="min-h-screen dark:bg-[#0B1020] bg-white transition-colors duration-300">
+            <Navbar />
+            <main>
+                <HeroSection />
+                <ComplaintSubmission />
+                <AIPipeline />
+                <DashboardPreview />
+                <OfficerWorkflow />
+                <TrustTransparency />
+            </main>
+            <Footer />
+        </div>
 
     );
 };

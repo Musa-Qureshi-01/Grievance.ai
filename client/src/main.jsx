@@ -8,6 +8,7 @@ import '@neondatabase/neon-js/ui/css';
 import { BrowserRouter } from 'react-router-dom';
 import { NeonAuthUIProvider } from '@neondatabase/neon-js/auth/react';
 import { authClient } from './libs/auth.js';
+import { ThemeProvider } from './components/landingpage/theme-provider.js';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -19,7 +20,9 @@ createRoot(document.getElementById('root')).render(
       }}
     >
       <BrowserRouter>
-        <App />
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>
       </BrowserRouter>
     </NeonAuthUIProvider>
   </StrictMode>,
