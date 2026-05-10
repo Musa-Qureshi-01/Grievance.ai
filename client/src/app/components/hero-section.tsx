@@ -35,7 +35,7 @@ export function HeroSection() {
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
-        <div className="text-center space-y-8">
+        <div className="text-center lg:w-7xl space-y-8">
           {/* Badge */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
