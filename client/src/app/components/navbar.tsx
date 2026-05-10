@@ -2,9 +2,10 @@ import { Moon, Sun, Menu } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "./ui/button";
 import { motion } from "motion/react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 export function Navbar() {
+  const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
 
   return (
@@ -16,7 +17,7 @@ export function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
             <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
               <svg
                 className="w-6 h-6 text-white"
@@ -41,9 +42,12 @@ export function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
-              Features
+            <a href="#home" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              Home
             </a>
+            {/* <a href="#features" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              Features
+            </a> */}
             <a href="#dashboard" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
               Dashboard
             </a>
