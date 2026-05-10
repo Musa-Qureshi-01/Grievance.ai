@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+
+# Cache
+.cache/
+.parcel-cache/
