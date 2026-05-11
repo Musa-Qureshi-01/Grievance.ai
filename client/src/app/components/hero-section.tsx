@@ -25,7 +25,7 @@ export function HeroSection() {
   }, []);
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16 pb-12">
+    <div id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16 pb-12">
       {/* Refined Enterprise Background */}
       <div className="absolute inset-0 dark:bg-[#0B1020] bg-slate-50">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
@@ -154,9 +154,9 @@ export function HeroSection() {
           <div className="absolute top-10 -left-10 hidden xl:block">
             <motion.div
               animate={{
-                y: [0, -10, 0],
+                y: [0, -15, 0],
               }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               className="w-56 p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -178,9 +178,9 @@ export function HeroSection() {
           <div className="absolute bottom-10 -right-10 hidden xl:block">
             <motion.div
               animate={{
-                y: [0, 10, 0],
+                y: [0, -15, 0],
               }}
-              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               className="w-56 p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg"
             >
               <div className="flex items-center gap-2 mb-3">
