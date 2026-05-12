@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import {
   Send,
   Mic,
@@ -12,9 +13,12 @@ import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
+import { dashboardService } from "../../services/dashboard.service";
+import { speechLanguages, useAzureSpeech } from "../../hooks/useAzureSpeech";
 
 export function ComplaintSubmission() {
   const [complaint, setComplaint] = useState("");
+  const [speechLanguage, setSpeechLanguage] = useState("hi-IN");
   const [isProcessing, setIsProcessing] = useState(false);
   const [analysis, setAnalysis] = useState<{
     language: string;
@@ -24,20 +28,29 @@ export function ComplaintSubmission() {
     summary: string;
   } | null>(null);
 
-  const handleSubmit = () => {
-    setIsProcessing(true);
-    
-    setTimeout(() => {
+  const analyzeMutation = useMutation({
+    mutationFn: dashboardService.analyzeComplaint,
+    onMutate: () => setIsProcessing(true),
+    onSuccess: (result) => {
       setAnalysis({
-        language: "Hindi (Detected)",
-        category: "Infrastructure",
-        priority: "High",
-        confidence: 94.5,
-        summary: "Road repair needed on MG Road due to multiple potholes causing traffic issues",
+        language: result.language,
+        category: result.category,
+        priority: result.priority,
+        confidence: Number(result.confidence || 0),
+        summary: result.summary,
       });
-      setIsProcessing(false);
-    }, 2000);
+    },
+    onSettled: () => setIsProcessing(false),
+  });
+
+  const handleSubmit = () => {
+    analyzeMutation.mutate(complaint);
   };
+
+  const speech = useAzureSpeech({
+    language: speechLanguage,
+    onText: (text) => setComplaint((prev) => `${prev}${prev ? " " : ""}${text}`),
+  });
 
   return (
     <section className="py-24 px-6 relative bg-slate-50/50 dark:bg-[#0B1020]">
@@ -83,13 +96,26 @@ export function ComplaintSubmission() {
               </div>
 
               <div className="flex flex-wrap gap-3">
+                <select
+                  value={speechLanguage}
+                  onChange={(event) => setSpeechLanguage(event.target.value)}
+                  className="h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm text-slate-700 dark:text-slate-300"
+                >
+                  {speechLanguages.map((language) => (
+                    <option key={language.value} value={language.value}>
+                      {language.label}
+                    </option>
+                  ))}
+                </select>
                 <Button
                   variant="outline"
                   size="sm"
+                  type="button"
+                  onClick={speech.toggleListening}
                   className="border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-900"
                 >
                   <Mic className="w-4 h-4 mr-2" />
-                  Voice Input
+                  {speech.isListening ? "Stop Voice" : "Voice Input"}
                 </Button>
                 <Button
                   variant="outline"

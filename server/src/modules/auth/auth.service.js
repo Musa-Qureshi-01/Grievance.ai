@@ -1,0 +1,87 @@
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { prisma } from '../../prisma/client.js';
+
+const TOKEN_TTL = process.env.JWT_EXPIRES_IN || '7d';
+
+function normalizeRole(role) {
+  if (!role) return 'CITIZEN';
+  const upper = String(role).trim().toUpperCase();
+  if (['CITIZEN', 'OFFICER', 'ADMIN', 'SUPER_ADMIN'].includes(upper)) return upper;
+  return 'CITIZEN';
+}
+
+function toPublicUser(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role.toLowerCase(),
+    phone: user.phone,
+    address: user.address,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+}
+
+function signToken(user) {
+  return jwt.sign(
+    { id: user.id, email: user.email, role: user.role.toLowerCase() },
+    process.env.JWT_SECRET,
+    { expiresIn: TOKEN_TTL },
+  );
+}
+
+export async function registerUser({ name, email, password, role, phone }) {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    const error = new Error('Email already exists');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const user = await prisma.user.create({
+    data: {
+      name,
+      email,
+      passwordHash,
+      role: normalizeRole(role),
+      phone: phone || null,
+    },
+  });
+
+  const token = signToken(user);
+  return { user: toPublicUser(user), token };
+}
+
+export async function loginUser({ email, password }) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    const error = new Error('Invalid email or password');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const isValid = await bcrypt.compare(password, user.passwordHash);
+  if (!isValid) {
+    const error = new Error('Invalid email or password');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const token = signToken(user);
+  return { user: toPublicUser(user), token };
+}
+
+export async function getCurrentUser(userId) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return toPublicUser(user);
+}

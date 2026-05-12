@@ -1,19 +1,42 @@
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
+import { useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { Shield, Mail, Lock, User, Building, ArrowRight } from "lucide-react";
+import { Shield, Mail, Lock, User, Building, ArrowRight, Phone } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { Navigate, useNavigate } from "react-router";
+import { authService } from "../../services/auth.service";
 
 export function AuthPage() {
-
   const navigate = useNavigate();
-
+  const queryClient = useQueryClient();
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [role, setRole] = useState<"citizen" | "officer" | "admin">("citizen");
   
-  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
-  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({ name: "", email: "", password: "", phone: "" });
   const [error, setError] = useState("");
+
+  const finishAuth = async (result: Awaited<ReturnType<typeof authService.login>>) => {
+    localStorage.setItem("authToken", result.token);
+    localStorage.setItem("currentUser", JSON.stringify(result.user));
+    await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+    toast.success("Signed in successfully");
+    navigate(result.user.role === "citizen" ? "/citizen-dashboard" : "/admin-dashboard");
+  };
+
+  const loginMutation = useMutation({
+    mutationFn: authService.login,
+    onSuccess: finishAuth,
+    onError: (err: any) => setError(err.message || "Unable to sign in"),
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: authService.register,
+    onSuccess: finishAuth,
+    onError: (err: any) => setError(err.message || "Unable to create account"),
+  });
+
+  const loading = loginMutation.isPending || registerMutation.isPending;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B1020] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -80,25 +103,46 @@ export function AuthPage() {
 
           <form className="space-y-6">
             {authMode === "signup" && (
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Full Name
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-slate-400" />
+              <>
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Full Name
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      value={formData.name}
+                      onChange={e => setFormData({...formData, name: e.target.value})}
+                      className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                      placeholder="Your full name"
+                    />
                   </div>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
-                    className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                    placeholder="John Doe"
-                  />
                 </div>
-              </div>
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    WhatsApp Phone
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Phone className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={e => setFormData({...formData, phone: e.target.value})}
+                      className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                      placeholder="+91XXXXXXXXXX"
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
             <div>
@@ -182,41 +226,13 @@ export function AuthPage() {
                       setError("Please fill all fields");
                       return;
                     }
-                    setLoading(true);
-                    try {
-                      const res = await fetch("http://localhost:3001/api/auth/register", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ email: formData.email, name: formData.name, role })
-                      });
-                      const data = await res.json();
-                      if (data.success) {
-                        if (role === "citizen") {
-                          navigate("/citizen-dashboard");
-                        } else if (role === "officer") {
-                          navigate("/officer-dashboard");
-                        } else if (role === "admin") {
-                          navigate("/admin-dashboard");
-                        }
-                      } else {
-                        setError(data.error || "Failed to register");
-                      }
-                    } catch (err) {
-                      setError("Server not reachable. Did you start the backend?");
-                    }
-                    setLoading(false);
+                    registerMutation.mutate({ ...formData, role });
                   } else {
-                    // Mock login success
-                    setLoading(true);
-                    setTimeout(() => {
-                      if (role === "citizen") {
-                        navigate("/citizen-dashboard");
-                      } else if (role === "officer") {
-                        navigate("/officer-dashboard");
-                      } else if (role === "admin") {
-                        navigate("/admin-dashboard");
-                      }
-                    }, 1000);
+                    if (!formData.email || !formData.password) {
+                      setError("Please enter email and password");
+                      return;
+                    }
+                    loginMutation.mutate({ email: formData.email, password: formData.password });
                   }
                 }}
               >

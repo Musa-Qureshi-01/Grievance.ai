@@ -1,8 +1,30 @@
-import { motion } from "motion/react";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import { Mail, Phone, MapPin, Send } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { useCurrentUser } from "../../../hooks/useAuth";
+import { dashboardService } from "../../../services/dashboard.service";
 
 export function CitizenContact() {
+    const { data: user } = useCurrentUser();
+    const [requestType, setRequestType] = useState("General Inquiry");
+    const [subject, setSubject] = useState("");
+    const [message, setMessage] = useState("");
+
+    const supportMutation = useMutation({
+        mutationFn: dashboardService.support,
+        onSuccess: () => {
+            toast.success("Support message submitted");
+            setSubject("");
+            setMessage("");
+        },
+    });
+
+    const names = (user?.name || "").split(" ");
+    const firstName = names[0] || "";
+    const lastName = names.slice(1).join(" ");
+
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <div className="text-center max-w-2xl mx-auto">
@@ -10,8 +32,7 @@ export function CitizenContact() {
                     Contact Support
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 mt-2">
-                    Need help with a special request or personal issue? Reach
-                    out to our dedicated civic support team.
+                    Send a tracked support request linked to your citizen account.
                 </p>
             </div>
 
@@ -19,7 +40,7 @@ export function CitizenContact() {
                 <div className="md:col-span-1 space-y-6">
                     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
                         <h3 className="font-semibold text-slate-900 dark:text-white mb-4">
-                            Direct Channels
+                            Your Channels
                         </h3>
                         <div className="space-y-6">
                             <div className="flex gap-4">
@@ -28,13 +49,10 @@ export function CitizenContact() {
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-medium text-slate-900 dark:text-white">
-                                        Helpline
+                                        Phone
                                     </h4>
                                     <p className="text-slate-500 text-sm mt-0.5">
-                                        311 (Local)
-                                    </p>
-                                    <p className="text-slate-500 text-sm">
-                                        1-800-GOV-HELP
+                                        {user?.phone || "Not added"}
                                     </p>
                                 </div>
                             </div>
@@ -45,10 +63,10 @@ export function CitizenContact() {
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-medium text-slate-900 dark:text-white">
-                                        Email Us
+                                        Email
                                     </h4>
                                     <p className="text-slate-500 text-sm mt-0.5">
-                                        support@govops.example.com
+                                        {user?.email || "Not available"}
                                     </p>
                                 </div>
                             </div>
@@ -59,12 +77,10 @@ export function CitizenContact() {
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-medium text-slate-900 dark:text-white">
-                                        Visit HQ
+                                        Address
                                     </h4>
                                     <p className="text-slate-500 text-sm mt-0.5">
-                                        100 Civic Center Drive,
-                                        <br />
-                                        Downtown District, 90210
+                                        {user?.address || "Not added"}
                                     </p>
                                 </div>
                             </div>
@@ -77,7 +93,18 @@ export function CitizenContact() {
                         <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-6">
                             Send a Message
                         </h2>
-                        <form className="space-y-6">
+                        <form
+                            className="space-y-6"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                supportMutation.mutate({
+                                    requestType,
+                                    subject,
+                                    message,
+                                    email: user?.email,
+                                });
+                            }}
+                        >
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -85,8 +112,9 @@ export function CitizenContact() {
                                     </label>
                                     <input
                                         type="text"
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 dark:text-white"
-                                        placeholder="John"
+                                        value={firstName}
+                                        readOnly
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
                                     />
                                 </div>
                                 <div>
@@ -95,8 +123,9 @@ export function CitizenContact() {
                                     </label>
                                     <input
                                         type="text"
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 dark:text-white"
-                                        placeholder="Doe"
+                                        value={lastName}
+                                        readOnly
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
                                     />
                                 </div>
                             </div>
@@ -107,8 +136,9 @@ export function CitizenContact() {
                                 </label>
                                 <input
                                     type="email"
-                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 dark:text-white"
-                                    placeholder="john@example.com"
+                                    value={user?.email || ""}
+                                    readOnly
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
                                 />
                             </div>
 
@@ -116,7 +146,11 @@ export function CitizenContact() {
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     Request Type
                                 </label>
-                                <select className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 dark:text-white">
+                                <select
+                                    value={requestType}
+                                    onChange={(event) => setRequestType(event.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 dark:text-white"
+                                >
                                     <option>General Inquiry</option>
                                     <option>Personal Records Update</option>
                                     <option>Feedback on Service</option>
@@ -126,17 +160,35 @@ export function CitizenContact() {
 
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    Subject
+                                </label>
+                                <input
+                                    value={subject}
+                                    onChange={(event) => setSubject(event.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 dark:text-white"
+                                    placeholder="Brief subject"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     Message
                                 </label>
                                 <textarea
                                     rows={5}
+                                    value={message}
+                                    onChange={(event) => setMessage(event.target.value)}
                                     className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 dark:text-white"
                                     placeholder="How can we help you?"
-                                ></textarea>
+                                />
                             </div>
 
-                            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-6 text-md font-medium">
-                                Send Message <Send className="w-4 h-4 ml-2" />
+                            <Button
+                                disabled={supportMutation.isPending}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-6 text-md font-medium"
+                            >
+                                {supportMutation.isPending ? "Sending..." : "Send Message"}
+                                <Send className="w-4 h-4 ml-2" />
                             </Button>
                         </form>
                     </div>

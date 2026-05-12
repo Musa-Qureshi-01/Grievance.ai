@@ -1,16 +1,58 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { MapPin, Send, UploadCloud, Info } from "lucide-react";
+import { MapPin, Send, UploadCloud, Info, Mic } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { complaintService } from "../../../services/complaint.service";
+import { speechLanguages, useAzureSpeech } from "../../../hooks/useAzureSpeech";
 
 type UploadItem = {
     file: File;
     url: string;
 };
 
+function normalizePrediction(complaint: any) {
+    if (complaint.prediction) {
+        return complaint.prediction;
+    }
+
+    const savedPrediction = complaint.predictions?.[0];
+    if (savedPrediction) {
+        return {
+            validity: savedPrediction.validity,
+            validity_confidence: savedPrediction.validityConfidence,
+            priority: savedPrediction.priority,
+            priority_confidence: savedPrediction.priorityConfidence,
+            trust_score: savedPrediction.trustScore,
+        };
+    }
+
+    return {
+        unavailable: true,
+        error: "No model output returned by backend. Check that the FastAPI model service is running on port 8000 and restart the Express server.",
+    };
+}
+
+function routedDepartment(category: string) {
+    if (category.includes("Infrastructure")) return "Public Works";
+    if (category.includes("Water")) return "Water Supply";
+    if (category.includes("Sanitation")) return "Sanitation";
+    if (category.includes("Safety")) return "Public Safety";
+    return "Civic Services";
+}
+
+function severityLabel(priority?: string) {
+    if (!priority) return "Pending model triage";
+    return priority;
+}
+
 export function SubmitGrievance() {
     const [step, setStep] = useState(1);
     const today = new Date().toISOString().split("T")[0];
+    const [primaryCategory, setPrimaryCategory] = useState("Infrastructure & Roads");
+    const [subCategory, setSubCategory] = useState("Pothole / Road Damage");
+    const [observationDate, setObservationDate] = useState(today);
+    const [description, setDescription] = useState("");
+    const [speechLanguage, setSpeechLanguage] = useState("hi-IN");
 
     const [location, setLocation] = useState("");
     const [isLocating, setIsLocating] = useState(false);
@@ -18,6 +60,28 @@ export function SubmitGrievance() {
 
     const [uploads, setUploads] = useState<UploadItem[]>([]);
     const [imageError, setImageError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [predictionResult, setPredictionResult] = useState<null | {
+        complaint: string;
+        validity?: string;
+        validity_confidence?: number;
+        priority?: string;
+        priority_confidence?: number;
+        trust_score?: number;
+        whatsappNotification?: {
+            sent?: boolean;
+            reason?: string;
+            sid?: string;
+        };
+        unavailable?: boolean;
+        error?: string;
+    }>(null);
+
+    const speech = useAzureSpeech({
+        language: speechLanguage,
+        onText: (text) => setDescription((prev) => `${prev}${prev ? " " : ""}${text}`),
+    });
 
     useEffect(() => {
         return () => {
@@ -192,7 +256,13 @@ export function SubmitGrievance() {
                                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-3">
                                             Primary Category
                                         </label>
-                                        <select className="w-full px-4 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm">
+                                        <select
+                                            value={primaryCategory}
+                                            onChange={(e) =>
+                                                setPrimaryCategory(e.target.value)
+                                            }
+                                            className="w-full px-4 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
+                                        >
                                             <option>
                                                 Infrastructure & Roads
                                             </option>
@@ -209,7 +279,13 @@ export function SubmitGrievance() {
                                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">
                                             Sub-Category
                                         </label>
-                                        <select className="w-full px-4 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm">
+                                        <select
+                                            value={subCategory}
+                                            onChange={(e) =>
+                                                setSubCategory(e.target.value)
+                                            }
+                                            className="w-full px-4 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
+                                        >
                                             <option>
                                                 Pothole / Road Damage
                                             </option>
@@ -228,6 +304,10 @@ export function SubmitGrievance() {
                                         <input
                                             type="date"
                                             min={today}
+                                            value={observationDate}
+                                            onChange={(e) =>
+                                                setObservationDate(e.target.value)
+                                            }
                                             className="w-full px-4 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
                                         />
                                     </div>
@@ -238,9 +318,36 @@ export function SubmitGrievance() {
                                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">
                                             Detailed Description
                                         </label>
+                                        <div className="flex flex-wrap gap-2 mb-3">
+                                            <select
+                                                value={speechLanguage}
+                                                onChange={(e) => setSpeechLanguage(e.target.value)}
+                                                className="h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-sm text-slate-900 dark:text-white"
+                                            >
+                                                {speechLanguages.map((language) => (
+                                                    <option key={language.value} value={language.value}>
+                                                        {language.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={speech.toggleListening}
+                                                className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium"
+                                            >
+                                                <Mic className="w-4 h-4 mr-2" />
+                                                {speech.isListening ? "Stop Voice" : "Speak Complaint"}
+                                            </Button>
+                                        </div>
                                         <textarea
                                             rows={10}
                                             placeholder="Provide specific details. E.g., 'The pothole is roughly 2 feet wide and located in the right lane...'"
+                                            value={description}
+                                            onChange={(e) =>
+                                                setDescription(e.target.value)
+                                            }
                                             className="w-full px-4 py-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm resize-none"
                                         ></textarea>
                                         <p className="text-[10px] text-slate-500 mt-1">
@@ -383,16 +490,13 @@ export function SubmitGrievance() {
                                         Automated Triage Complete
                                     </h4>
                                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                                        Based on your input and historical data,
-                                        this report has been classified as{" "}
-                                        <strong>Severity Level 2</strong>. Upon
-                                        submission, it will be immediately
-                                        queued for the{" "}
-                                        <strong>
-                                            Public Works (Infrastructure)
-                                            Division
-                                        </strong>
-                                        .
+                                        This report is ready for automated
+                                        triage as{" "}
+                                        <strong>{primaryCategory}</strong> /{" "}
+                                        <strong>{subCategory}</strong>. After
+                                        submission, the live model output will
+                                        set priority and route it to{" "}
+                                        <strong>{routedDepartment(primaryCategory)}</strong>.
                                     </p>
                                 </div>
                             </div>
@@ -407,7 +511,7 @@ export function SubmitGrievance() {
                                             Category
                                         </span>
                                         <span className="font-medium text-slate-900 dark:text-white">
-                                            Infrastructure & Roads
+                                            {primaryCategory}
                                         </span>
                                     </div>
                                     <div>
@@ -415,7 +519,7 @@ export function SubmitGrievance() {
                                             Sub-Category
                                         </span>
                                         <span className="font-medium text-slate-900 dark:text-white">
-                                            Pothole / Road Damage
+                                            {subCategory}
                                         </span>
                                     </div>
                                     <div className="col-span-2">
@@ -423,8 +527,7 @@ export function SubmitGrievance() {
                                             Location
                                         </span>
                                         <span className="font-medium text-slate-900 dark:text-white">
-                                            {location ||
-                                                "124 Main Street, Downtown"}
+                                            {location || "Location not provided"}
                                         </span>
                                     </div>
                                     <div className="col-span-2">
@@ -453,25 +556,132 @@ export function SubmitGrievance() {
                     >
                         Back
                     </Button>
+                    {submitError && (
+                        <p className="ml-4 text-sm text-red-500">{submitError}</p>
+                    )}
                     <Button
+                        type="button"
+                        disabled={isSubmitting}
                         className="bg-blue-600 hover:bg-blue-700 text-white rounded-md px-6 text-sm font-semibold shadow-md shadow-blue-500/20"
-                        onClick={() => {
-                            if (step < 3) setStep(step + 1);
-                            else
-                                alert(
-                                    "Official Grievance Submitted Successfully.",
+                        onClick={async () => {
+                            if (step < 3) {
+                                setStep(step + 1);
+                                return;
+                            }
+
+                            setIsSubmitting(true);
+                            setSubmitError(null);
+                            setPredictionResult(null);
+
+                            try {
+                                const complaint = await complaintService.create({
+                                    title: `${subCategory} - ${location || "Location pending"}`,
+                                    description: [
+                                        `Category: ${primaryCategory}`,
+                                        `Sub-category: ${subCategory}`,
+                                        `Date: ${observationDate}`,
+                                        `Location: ${location || "Not provided"}`,
+                                        `Description: ${description.trim() || "No description provided"}`,
+                                    ].join("\n"),
+                                    priority: "medium",
+                                    category: primaryCategory,
+                                    subCategory,
+                                });
+
+                                setPredictionResult({
+                                    complaint: complaint.id,
+                                    ...normalizePrediction(complaint),
+                                    whatsappNotification: complaint.whatsappNotification,
+                                });
+                                alert(`Official Grievance Submitted Successfully.\n\nTracking ID: ${complaint.id}`);
+                            } catch (error) {
+                                setSubmitError(
+                                    error instanceof Error
+                                        ? error.message
+                                        : "Failed to submit complaint",
                                 );
+                            } finally {
+                                setIsSubmitting(false);
+                            }
                         }}
                     >
                         {step === 3 ? (
                             <>
-                                Submit Complaint <Send className="w-4 h-4 ml-2" />
+                                {isSubmitting ? "Submitting..." : "Submit Complaint"}{" "}
+                                <Send className="w-4 h-4 ml-2" />
                             </>
                         ) : (
                             "Proceed to Next Section"
                         )}
                     </Button>
                 </div>
+
+                {predictionResult && (
+                    <div className="px-6 pb-6">
+                        <div className="rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/80 dark:bg-blue-950/30 p-4 shadow-sm">
+                            <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+                                Model Output
+                            </h4>
+                            {predictionResult.unavailable && (
+                                <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+                                    Model service unavailable: {predictionResult.error}
+                                </p>
+                            )}
+                            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                <div className="md:col-span-2">
+                                    <span className="block text-xs text-slate-500">Tracking ID</span>
+                                    <span className="font-medium text-slate-900 dark:text-white">
+                                        {predictionResult.complaint}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="block text-xs text-slate-500">Validity</span>
+                                    <span className="font-medium text-slate-900 dark:text-white">
+                                        {predictionResult.validity ?? "Model pending"}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="block text-xs text-slate-500">Priority</span>
+                                    <span className="font-medium text-slate-900 dark:text-white">
+                                        {severityLabel(predictionResult.priority)}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="block text-xs text-slate-500">Validity Confidence</span>
+                                    <span className="font-medium text-slate-900 dark:text-white">
+                                        {predictionResult.validity_confidence != null
+                                            ? `${predictionResult.validity_confidence}%`
+                                            : "Model pending"}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="block text-xs text-slate-500">Priority Confidence</span>
+                                    <span className="font-medium text-slate-900 dark:text-white">
+                                        {predictionResult.priority_confidence != null
+                                            ? `${predictionResult.priority_confidence}%`
+                                            : "Model pending"}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="block text-xs text-slate-500">Trust Score</span>
+                                    <span className="font-medium text-slate-900 dark:text-white">
+                                        {predictionResult.trust_score != null
+                                            ? predictionResult.trust_score
+                                            : "Model pending"}
+                                    </span>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <span className="block text-xs text-slate-500">WhatsApp Confirmation</span>
+                                    <span className="font-medium text-slate-900 dark:text-white">
+                                        {predictionResult.whatsappNotification?.sent
+                                            ? "Sent"
+                                            : predictionResult.whatsappNotification?.reason || "Not sent"}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

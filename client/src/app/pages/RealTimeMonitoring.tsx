@@ -1,14 +1,16 @@
 import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import { Map, Activity, AlertTriangle, ShieldCheck, Users, Radio } from "lucide-react";
 import { Badge } from "../components/ui/badge";
+import { dashboardService } from "../../services/dashboard.service";
 
 export function RealTimeMonitoring() {
-  const activeIncidents = [
-    { id: "INC-092", type: "Infrastructure", severity: "High", location: "Sector 4, North District", status: "Dispatching" },
-    { id: "INC-093", type: "Traffic", severity: "Medium", location: "Downtown Hub", status: "Monitoring" },
-    { id: "INC-094", type: "Public Safety", severity: "Critical", location: "Westside Zone", status: "Active Response" },
-    { id: "INC-095", type: "Utility", severity: "Low", location: "East Ward", status: "Queued" },
-  ];
+  const { data } = useQuery({
+    queryKey: ["incidents", "monitoring"],
+    queryFn: dashboardService.incidents,
+  });
+  const activeIncidents = data?.items ?? [];
+  const stats = data?.stats ?? {};
 
   return (
     <div className="space-y-6">
@@ -53,15 +55,15 @@ export function RealTimeMonitoring() {
           <div className="grid grid-cols-3 gap-4">
             <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
               <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">Active Zones</div>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white">14</div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">{stats.activeZones ?? 0}</div>
             </div>
             <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
               <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">Field Units</div>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white">42</div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">{stats.fieldUnits ?? 0}</div>
             </div>
             <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
               <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">Avg Response</div>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white">8.4m</div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">Live</div>
             </div>
           </div>
         </div>

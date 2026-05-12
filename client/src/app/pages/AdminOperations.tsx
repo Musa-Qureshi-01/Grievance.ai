@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import { 
   AlertTriangle, 
   MapPin, 
@@ -15,47 +15,16 @@ import {
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-
-const activeIncidents = [
-  {
-    id: "INC-9921",
-    type: "Infrastructure",
-    title: "Major Pothole Cluster on Highway 4",
-    priority: "Critical",
-    location: "Sector 4, North District",
-    sla: "1h 15m",
-    status: "Escalated",
-    aiSummary: "Multiple identical reports detected in the last 2 hours. High risk of accidents.",
-    action: "Dispatch emergency repair team immediately.",
-    reportsCount: 14
-  },
-  {
-    id: "INC-9920",
-    type: "Water Supply",
-    title: "Main Pipe Burst near Residential Area",
-    priority: "High",
-    location: "Block C, West Zone",
-    sla: "2h 45m",
-    status: "Assigned",
-    aiSummary: "Water logging reported. Potential property damage if not resolved quickly.",
-    action: "Coordinate with traffic police for road diversion and dispatch plumbing team.",
-    reportsCount: 8
-  },
-  {
-    id: "INC-9918",
-    type: "Electrical",
-    title: "Streetlight Outage - 5 blocks",
-    priority: "Medium",
-    location: "Downtown Boulevard",
-    sla: "12h 30m",
-    status: "Pending",
-    aiSummary: "Pattern matches scheduled maintenance area but out of timeframe.",
-    action: "Verify with local grid station for planned outages before dispatching.",
-    reportsCount: 3
-  }
-];
+import { dashboardService } from "../../services/dashboard.service";
 
 export function AdminOperations() {
+  const { data } = useQuery({
+    queryKey: ["incidents", "operations"],
+    queryFn: dashboardService.incidents,
+  });
+  const activeIncidents = data?.items ?? [];
+  const stats = data?.stats ?? {};
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -84,7 +53,7 @@ export function AdminOperations() {
               <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">124</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.activeIncidents ?? 0}</p>
           <div className="flex items-center gap-2 mt-2">
             <span className="flex items-center text-xs font-medium text-green-600 dark:text-green-400">
               <ArrowUpRight className="w-3 h-3 mr-0.5" />
@@ -101,7 +70,7 @@ export function AdminOperations() {
               <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">8</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.criticalPriority ?? 0}</p>
           <div className="flex items-center gap-2 mt-2">
             <span className="flex items-center text-xs font-medium text-red-600 dark:text-red-400">
               <ArrowUpRight className="w-3 h-3 mr-0.5" />
@@ -118,7 +87,7 @@ export function AdminOperations() {
               <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">3</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.slaBreaches ?? 0}</p>
           <div className="flex items-center gap-2 mt-2">
             <span className="flex items-center text-xs font-medium text-green-600 dark:text-green-400">
               <ArrowUpRight className="w-3 h-3 mr-0.5 rotate-180" />
@@ -135,7 +104,7 @@ export function AdminOperations() {
               <Lightbulb className="w-4 h-4 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">42%</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.autoResolvedRate ?? 0}%</p>
           <div className="flex items-center gap-2 mt-2">
             <span className="flex items-center text-xs font-medium text-green-600 dark:text-green-400">
               <ArrowUpRight className="w-3 h-3 mr-0.5" />
@@ -199,7 +168,7 @@ export function AdminOperations() {
                   </span>
                   <span className={`flex items-center gap-1.5 font-medium ${incident.priority === 'Critical' ? 'text-red-600 dark:text-red-400' : ''}`}>
                     <Clock className="w-4 h-4" />
-                    SLA: {incident.sla}
+                    SLA: {incident.sla ?? "Live"}
                   </span>
                 </div>
 

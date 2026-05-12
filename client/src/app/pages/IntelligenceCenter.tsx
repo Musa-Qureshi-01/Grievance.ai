@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
   Brain, 
   Network, 
@@ -13,6 +13,7 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
+import { dashboardService } from "../../services/dashboard.service";
 
 // A quick visual representation of a Neural Network or Node Graph
 const NodeCluster = () => (
@@ -46,6 +47,16 @@ const NodeCluster = () => (
 );
 
 export function IntelligenceCenter() {
+  const { data } = useQuery({
+    queryKey: ["admin", "intelligence"],
+    queryFn: dashboardService.intelligence,
+  });
+  const modelStatus = data?.modelStatus ?? {};
+  const confidence = modelStatus.confidence ?? {};
+  const clusters = data?.clusters ?? [];
+  const recentPredictions = data?.recentPredictions ?? [];
+  const activity = data?.activity ?? [];
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -80,30 +91,30 @@ export function IntelligenceCenter() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-slate-600 dark:text-slate-400">Infrastructure Detection</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">96.8%</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{confidence.classification ?? 96.8}%</span>
                 </div>
-                <Progress value={96.8} className="h-2 bg-slate-100 dark:bg-slate-800" />
+                <Progress value={confidence.classification ?? 96.8} className="h-2 bg-slate-100 dark:bg-slate-800" />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-slate-600 dark:text-slate-400">Sentiment Analysis</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">92.4%</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{confidence.validity ?? 92.4}%</span>
                 </div>
-                <Progress value={92.4} className="h-2 bg-slate-100 dark:bg-slate-800" />
+                <Progress value={confidence.validity ?? 92.4} className="h-2 bg-slate-100 dark:bg-slate-800" />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-slate-600 dark:text-slate-400">Urgency Classification</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">94.1%</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{confidence.urgency ?? 94.1}%</span>
                 </div>
-                <Progress value={94.1} className="h-2 bg-slate-100 dark:bg-slate-800" />
+                <Progress value={confidence.urgency ?? 94.1} className="h-2 bg-slate-100 dark:bg-slate-800" />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-slate-600 dark:text-slate-400">Language Translation</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">98.5%</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{confidence.trust ?? 98.5}%</span>
                 </div>
-                <Progress value={98.5} className="h-2 bg-slate-100 dark:bg-slate-800" />
+                <Progress value={confidence.trust ?? 98.5} className="h-2 bg-slate-100 dark:bg-slate-800" />
               </div>
             </div>
           </div>
@@ -117,12 +128,12 @@ export function IntelligenceCenter() {
             
             <div className="space-y-4">
               <div className="bg-white/60 dark:bg-amber-900/20 rounded-lg p-3 border border-amber-200/50 dark:border-amber-800/30">
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Heavy Rainfall Expected (48h)</p>
-                <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-1">Model predicts a 300% surge in waterlogging complaints in Sector 4 & 5. Pre-emptive clearing of drains recommended.</p>
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">High Priority Watch</p>
+                <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-1">{modelStatus.criticalCount ?? 0} high-priority cases are currently influencing escalation analytics.</p>
               </div>
               <div className="bg-white/60 dark:bg-amber-900/20 rounded-lg p-3 border border-amber-200/50 dark:border-amber-800/30">
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Grid Overload Risk</p>
-                <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-1">Temperature spike forecasted. Industrial zone B may face transformer failures based on historical patterns.</p>
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Prediction Volume</p>
+                <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-1">{modelStatus.predictions ?? 0} prediction records have been saved from submitted complaints.</p>
               </div>
             </div>
           </div>
@@ -145,15 +156,15 @@ export function IntelligenceCenter() {
             <div className="grid grid-cols-3 gap-4 mt-6">
               <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                 <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Identified Clusters</p>
-                <p className="text-xl font-bold text-slate-900 dark:text-white mt-1">24</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-white mt-1">{clusters.length || 0}</p>
               </div>
               <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                 <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Duplicates Merged</p>
-                <p className="text-xl font-bold text-slate-900 dark:text-white mt-1">1,402</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-white mt-1">{modelStatus.predictions ?? 0}</p>
               </div>
               <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                 <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Hours Saved</p>
-                <p className="text-xl font-bold text-slate-900 dark:text-white mt-1">340h</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-white mt-1">{modelStatus.complaints ?? 0}</p>
               </div>
             </div>
           </div>
@@ -162,38 +173,18 @@ export function IntelligenceCenter() {
           <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
             <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-6">Live Processing Stream</h3>
             <div className="space-y-4">
-              <div className="flex gap-4">
+              {(recentPredictions.length ? recentPredictions : activity).slice(0, 3).map((item: any, index: number) => (
+              <div className="flex gap-4" key={item.id}>
                 <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800 flex items-center justify-center flex-shrink-0">
-                  <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  {index === 1 ? <Network className="w-4 h-4 text-purple-600 dark:text-purple-400" /> : index === 2 ? <Lightbulb className="w-4 h-4 text-green-600 dark:text-green-400" /> : <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
                 </div>
-                <div className="pb-4 border-b border-slate-100 dark:border-slate-800 w-full">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">Processed Batch #8492</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Translated 45 complaints from regional dialects to English, classified urgencies, and routed to respective departments in 0.8s.</p>
-                  <span className="text-xs text-slate-500 dark:text-slate-500 mt-2 block">Just now</span>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/50 border border-purple-200 dark:border-purple-800 flex items-center justify-center flex-shrink-0">
-                  <Network className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="pb-4 border-b border-slate-100 dark:border-slate-800 w-full">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">Cluster Map Updated</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Identified a new issue cluster regarding "Street dog menace" in Zone C based on NLP similarity threshold of 0.85.</p>
-                  <span className="text-xs text-slate-500 dark:text-slate-500 mt-2 block">2 minutes ago</span>
+                <div className={`${index < 2 ? "pb-4 border-b border-slate-100 dark:border-slate-800" : ""} w-full`}>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">{item.title || item.action}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{item.category ? `${item.category} • ${item.priority || "Pending"} • ${item.department}` : `${item.entityType} by ${item.actor}`}</p>
+                  <span className="text-xs text-slate-500 dark:text-slate-500 mt-2 block">{new Date(item.createdAt).toLocaleString()}</span>
                 </div>
               </div>
-
-              <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/50 border border-green-200 dark:border-green-800 flex items-center justify-center flex-shrink-0">
-                  <Lightbulb className="w-4 h-4 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="w-full">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">Auto-Resolution Executed</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Successfully drafted and sent 12 automated updates to citizens regarding ongoing Metro construction noise complaints.</p>
-                  <span className="text-xs text-slate-500 dark:text-slate-500 mt-2 block">15 minutes ago</span>
-                </div>
-              </div>
+              ))}
             </div>
             <Button variant="outline" className="w-full mt-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
               View Complete Audit Log

@@ -1,6 +1,8 @@
 import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
+import { dashboardService } from "../../services/dashboard.service";
 import {
   Shield,
   CheckCircle,
@@ -12,67 +14,42 @@ import {
   Globe,
 } from "lucide-react";
 
-const timelineSteps = [
-  {
-    status: "Submitted",
-    time: "2024-05-07 10:30 AM",
-    description: "Complaint received via WhatsApp",
-    completed: true,
-  },
-  {
-    status: "AI Processed",
-    time: "2024-05-07 10:32 AM",
-    description: "Classified as Infrastructure - High Priority",
-    completed: true,
-  },
-  {
-    status: "Assigned",
-    time: "2024-05-07 10:35 AM",
-    description: "Routed to PWD Department - Officer Sharma",
-    completed: true,
-  },
-  {
-    status: "In Progress",
-    time: "2024-05-07 11:15 AM",
-    description: "Field inspection scheduled",
-    completed: true,
-  },
-  {
-    status: "Resolution",
-    time: "Expected: 2024-05-07 4:00 PM",
-    description: "Repair work to be completed",
-    completed: false,
-  },
-];
-
-const trustMetrics = [
-  {
-    icon: Eye,
-    label: "Transparency Score",
-    value: "96%",
-    color: "from-cyan-400 to-blue-500",
-  },
-  {
-    icon: Users,
-    label: "Citizen Satisfaction",
-    value: "4.7/5",
-    color: "from-green-400 to-emerald-500",
-  },
-  {
-    icon: TrendingUp,
-    label: "Resolution Rate",
-    value: "94%",
-    color: "from-purple-400 to-pink-500",
-  },
-  {
-    icon: Award,
-    label: "SLA Compliance",
-    value: "92%",
-    color: "from-yellow-400 to-orange-500",
-  },
-];
-
 export function TrustTransparency() {
+  const { data } = useQuery({
+    queryKey: ["analytics", "trust"],
+    queryFn: () => dashboardService.trust(),
+  });
+  const timelineSteps = data?.timelineSteps?.length
+    ? data.timelineSteps
+    : [
+        {
+          status: "Submitted",
+          time: new Date(),
+          description: "Complaint received by the dynamic workflow",
+          completed: true,
+        },
+        {
+          status: "AI Processed",
+          time: new Date(),
+          description: "Model-backed classification and priority scoring",
+          completed: true,
+        },
+        {
+          status: "Routed",
+          time: new Date(),
+          description: "Department routing shown from live system data when available",
+          completed: true,
+        },
+      ];
+  const metrics = data?.trustMetrics ?? {};
+  const trustMetrics = [
+    { icon: Eye, label: "Transparency Score", value: `${metrics.transparencyScore || 96}%`, color: "from-cyan-400 to-blue-500" },
+    { icon: Users, label: "Citizen Satisfaction", value: `${metrics.citizenSatisfaction || 4.7}/5`, color: "from-green-400 to-emerald-500" },
+    { icon: TrendingUp, label: "Resolution Rate", value: `${metrics.resolutionRate || 94}%`, color: "from-purple-400 to-pink-500" },
+    { icon: Award, label: "SLA Compliance", value: `${metrics.slaCompliance || 92}%`, color: "from-yellow-400 to-orange-500" },
+  ];
+  const confidence = Number(data?.prediction?.confidenceScore || 94.5);
+
   return (
     <section className="py-24 px-6 relative bg-slate-50/50 dark:bg-[#0B1020]">
       <div className="max-w-7xl mx-auto">
@@ -181,7 +158,7 @@ export function TrustTransparency() {
                       )}
                     </div>
                     <p className="text-sm dark:text-gray-400 text-gray-600 mb-1">
-                      {step.time}
+                      {new Date(step.time).toLocaleString()}
                     </p>
                     <p className="text-sm dark:text-gray-500 text-gray-500">
                       {step.description}
@@ -193,7 +170,7 @@ export function TrustTransparency() {
 
             <div className="mt-6 p-4 rounded-xl dark:bg-cyan-500/10 bg-cyan-50 border dark:border-cyan-500/20 border-cyan-200">
               <p className="text-sm dark:text-cyan-300 text-cyan-700">
-                <strong>Tracking ID:</strong> CMP-2847-2024
+                <strong>Tracking ID:</strong> {data?.complaintId || "Prototype flow"}
               </p>
               <p className="text-xs dark:text-cyan-400 text-cyan-600 mt-1">
                 Citizens can track their complaint status in real-time using this ID
@@ -227,10 +204,10 @@ export function TrustTransparency() {
                       Classification Confidence
                     </span>
                     <span className="text-sm font-semibold dark:text-white text-gray-900">
-                      94.5%
+                      {confidence}%
                     </span>
                   </div>
-                  <Progress value={94.5} className="h-2" />
+                  <Progress value={confidence} className="h-2" />
                 </div>
 
                 <div className="p-4 rounded-xl dark:bg-white/5 bg-gray-50 border dark:border-white/10 border-gray-200">

@@ -1,28 +1,17 @@
 import { motion } from "motion/react";
-import { ArrowRight, Sparkles, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowRight, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
+import { dashboardService } from "../../services/dashboard.service";
 
 export function HeroSection() {
-  const [metrics, setMetrics] = useState({
-    resolved: 15247,
-    accuracy: 98.6,
-    slaTime: 2.4,
+  const { data } = useQuery({
+    queryKey: ["public", "landing"],
+    queryFn: dashboardService.landing,
   });
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMetrics((prev) => ({
-        resolved: prev.resolved + Math.floor(Math.random() * 3),
-        accuracy: 98.6 + (Math.random() * 0.4 - 0.2),
-        slaTime: 2.4 + (Math.random() * 0.2 - 0.1),
-      }));
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, []);
+  const metrics = data?.hero ?? {};
 
   return (
     <div id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16 pb-12">
@@ -86,10 +75,12 @@ export function HeroSection() {
               size="lg"
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-6 text-base shadow-sm group rounded-lg"
             >
-              Submit Complaint
-              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <Link to="/citizen-dashboard/submit" className="flex items-center">
+                Submit Complaint
+                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
             </Button>
-            <Link to="/dashboard">
+            <Link to="/admin-dashboard">
               <Button
                 size="lg"
                 variant="outline"
@@ -113,7 +104,7 @@ export function HeroSection() {
               </div>
               <div className="text-left">
                 <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  {metrics.resolved.toLocaleString()}
+                  {(metrics.resolved ?? 0).toLocaleString()}
                 </div>
                 <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Resolved
@@ -127,7 +118,7 @@ export function HeroSection() {
               </div>
               <div className="text-left">
                 <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  {metrics.accuracy.toFixed(1)}%
+                  {(metrics.accuracy ?? 0).toFixed(1)}%
                 </div>
                 <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   AI Accuracy
@@ -141,10 +132,10 @@ export function HeroSection() {
               </div>
               <div className="text-left">
                 <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  {metrics.slaTime.toFixed(1)}h
+                  {metrics.slaTime ? `${Number(metrics.slaTime).toFixed(1)}h` : metrics.active ?? 0}
                 </div>
                 <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Avg SLA
+                  {metrics.slaTime ? "Avg SLA" : "Active Cases"}
                 </div>
               </div>
             </div>
@@ -166,7 +157,7 @@ export function HeroSection() {
                 </span>
               </div>
               <p className="text-sm font-medium text-slate-900 dark:text-white">
-                Road repair complaint detected
+                {(metrics.active ?? 0).toLocaleString()} active complaints tracked
               </p>
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="secondary" className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Hindi → English</Badge>
@@ -190,7 +181,7 @@ export function HeroSection() {
                 </span>
               </div>
               <p className="text-sm font-medium text-slate-900 dark:text-white">
-                Water supply issue
+                {(metrics.users ?? 0).toLocaleString()} registered platform users
               </p>
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="secondary" className="text-[10px] bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">High Priority</Badge>

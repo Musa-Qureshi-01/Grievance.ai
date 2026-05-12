@@ -1,15 +1,17 @@
 import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import { Users, Shield, Database, Settings, Key, UserCheck, ShieldAlert, MoreVertical } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { dashboardService } from "../../services/dashboard.service";
 
 export function SuperAdminPanel() {
-  const users = [
-    { name: "Alice Officer", email: "alice@govops.example", role: "Officer", department: "Public Works", status: "Active" },
-    { name: "Bob Commander", email: "bob@govops.example", role: "Admin", department: "HQ", status: "Active" },
-    { name: "Charlie Trainee", email: "charlie@govops.example", role: "Officer", department: "Traffic", status: "Pending" },
-    { name: "David Tech", email: "david@govops.example", role: "Super Admin", department: "IT Security", status: "Active" },
-  ];
+  const { data } = useQuery({
+    queryKey: ["admin", "users"],
+    queryFn: dashboardService.users,
+  });
+  const users = data?.users ?? [];
+  const stats = data?.stats ?? {};
 
   return (
     <div className="space-y-6">
@@ -32,7 +34,7 @@ export function SuperAdminPanel() {
             </div>
             <span className="font-medium text-slate-600 dark:text-slate-400">Total Users</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white">1,492</div>
+          <div className="text-3xl font-bold text-slate-900 dark:text-white">{stats.totalUsers ?? 0}</div>
         </div>
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3 mb-2">
@@ -41,7 +43,7 @@ export function SuperAdminPanel() {
             </div>
             <span className="font-medium text-slate-600 dark:text-slate-400">Admins</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white">24</div>
+          <div className="text-3xl font-bold text-slate-900 dark:text-white">{stats.admins ?? 0}</div>
         </div>
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3 mb-2">
@@ -50,7 +52,7 @@ export function SuperAdminPanel() {
             </div>
             <span className="font-medium text-slate-600 dark:text-slate-400">System Health</span>
           </div>
-          <div className="text-3xl font-bold text-green-600 dark:text-green-400">99.9%</div>
+          <div className="text-3xl font-bold text-green-600 dark:text-green-400">{stats.systemHealth ?? 0}%</div>
         </div>
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3 mb-2">
@@ -59,7 +61,7 @@ export function SuperAdminPanel() {
             </div>
             <span className="font-medium text-slate-600 dark:text-slate-400">Security Alerts</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white">0</div>
+          <div className="text-3xl font-bold text-slate-900 dark:text-white">{stats.securityAlerts ?? 0}</div>
         </div>
       </div>
 
@@ -86,19 +88,19 @@ export function SuperAdminPanel() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {users.map((user, idx) => (
-                <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+              {users.map((user: any) => (
+                <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-medium text-slate-900 dark:text-white">{user.name}</div>
                     <div className="text-slate-500 dark:text-slate-400 text-xs">{user.email}</div>
                   </td>
                   <td className="px-6 py-4">
                     <Badge variant="outline" className={`
-                      ${user.role === 'Super Admin' ? 'border-purple-500 text-purple-600 dark:text-purple-400' : ''}
-                      ${user.role === 'Admin' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : ''}
-                      ${user.role === 'Officer' ? 'border-slate-500 text-slate-600 dark:text-slate-400' : ''}
+                      ${user.role === 'super_admin' ? 'border-purple-500 text-purple-600 dark:text-purple-400' : ''}
+                      ${user.role === 'admin' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : ''}
+                      ${user.role === 'officer' ? 'border-slate-500 text-slate-600 dark:text-slate-400' : ''}
                     `}>
-                      {user.role}
+                      {String(user.role).replaceAll("_", " ")}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 text-slate-600 dark:text-slate-300">

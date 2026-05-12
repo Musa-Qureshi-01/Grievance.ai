@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -13,9 +13,7 @@ import {
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-
-// A mock representation of a recharts chart to avoid complex dependencies setup if not needed,
-// but since recharts is in package.json, we can actually use it.
+import { dashboardService } from "../../services/dashboard.service";
 import { 
   AreaChart, 
   Area, 
@@ -29,25 +27,16 @@ import {
   Legend
 } from "recharts";
 
-const performanceData = [
-  { name: 'Mon', resolved: 40, incoming: 24, escalated: 4 },
-  { name: 'Tue', resolved: 30, incoming: 39, escalated: 8 },
-  { name: 'Wed', resolved: 45, incoming: 20, escalated: 2 },
-  { name: 'Thu', resolved: 50, incoming: 27, escalated: 3 },
-  { name: 'Fri', resolved: 65, incoming: 48, escalated: 12 },
-  { name: 'Sat', resolved: 40, incoming: 38, escalated: 5 },
-  { name: 'Sun', resolved: 30, incoming: 43, escalated: 7 },
-];
-
-const departmentData = [
-  { name: 'PWD', compliance: 85, SLA: 92 },
-  { name: 'Water', compliance: 78, SLA: 85 },
-  { name: 'Power', compliance: 92, SLA: 96 },
-  { name: 'Sanitation', compliance: 88, SLA: 90 },
-  { name: 'Traffic', compliance: 74, SLA: 80 },
-];
-
 export function GovernanceDashboard() {
+  const { data } = useQuery({
+    queryKey: ["analytics", "governance"],
+    queryFn: dashboardService.governance,
+  });
+  const stats = data?.stats ?? {};
+  const performanceData = data?.performanceData ?? [];
+  const departmentData = data?.departmentData ?? [];
+  const topEscalations = data?.topEscalations ?? [];
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -77,7 +66,7 @@ export function GovernanceDashboard() {
               <Activity className="w-4 h-4 text-green-600 dark:text-green-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">4,289</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.totalResolutions ?? 0}</p>
           <div className="flex items-center gap-2 mt-2">
             <span className="flex items-center text-xs font-medium text-green-600 dark:text-green-400">
               <TrendingUp className="w-3 h-3 mr-0.5" />
@@ -94,7 +83,7 @@ export function GovernanceDashboard() {
               <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">18.4h</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.averageResolutionHours != null ? `${stats.averageResolutionHours}h` : "Calculating"}</p>
           <div className="flex items-center gap-2 mt-2">
             <span className="flex items-center text-xs font-medium text-green-600 dark:text-green-400">
               <TrendingDown className="w-3 h-3 mr-0.5" />
@@ -111,7 +100,7 @@ export function GovernanceDashboard() {
               <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">94.2%</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.slaCompliance ?? 0}%</p>
           <div className="flex items-center gap-2 mt-2">
             <span className="flex items-center text-xs font-medium text-green-600 dark:text-green-400">
               <TrendingUp className="w-3 h-3 mr-0.5" />
@@ -128,7 +117,7 @@ export function GovernanceDashboard() {
               <Users className="w-4 h-4 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">4.6/5</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.citizenSatisfaction ?? 0}/5</p>
           <div className="flex items-center gap-2 mt-2">
             <span className="flex items-center text-xs font-medium text-green-600 dark:text-green-400">
               <TrendingUp className="w-3 h-3 mr-0.5" />
@@ -206,14 +195,14 @@ export function GovernanceDashboard() {
                   <AlertOctagon className="w-4 h-4 text-amber-300 mt-0.5" />
                   <h4 className="font-medium text-sm">Emerging Hotspot</h4>
                 </div>
-                <p className="text-indigo-100 text-sm">Traffic related grievances have spiked by 42% in Sector 18. Recommend temporary deployment of traffic marshals.</p>
+                <p className="text-indigo-100 text-sm">{topEscalations[0]?.title ? `${topEscalations[0].title} is currently the top escalation. Recommend department-level review.` : "High-priority grievance patterns will appear here as live reports are submitted."}</p>
               </div>
               <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm border border-white/10">
                 <div className="flex items-start gap-2 mb-1">
                   <Activity className="w-4 h-4 text-green-300 mt-0.5" />
                   <h4 className="font-medium text-sm">Positive Trend</h4>
                 </div>
-                <p className="text-indigo-100 text-sm">Sanitation resolution time has improved by 2.4 hours on average after the recent AI routing update.</p>
+                <p className="text-indigo-100 text-sm">{stats.slaCompliance ? `Current SLA compliance is ${stats.slaCompliance}%, based on resolved complaint records.` : "Resolution trends will update once complaints move through the workflow."}</p>
               </div>
             </div>
             <Button variant="ghost" className="w-full mt-4 text-indigo-100 hover:text-white hover:bg-white/10 border border-white/20">
@@ -224,27 +213,15 @@ export function GovernanceDashboard() {
           <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
             <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-4">Top Escalations</h3>
             <div className="space-y-4">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">Water Supply Line 3</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">14 repeated complaints</p>
+              {topEscalations.map((item: any) => (
+                <div key={item.id} className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">{item.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{item.department}</p>
+                  </div>
+                  <Badge variant="secondary" className="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{item.priority}</Badge>
                 </div>
-                <Badge variant="secondary" className="bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400">Critical</Badge>
-              </div>
-              <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">Zone B Power Grid</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">8 repeated complaints</p>
-                </div>
-                <Badge variant="secondary" className="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">High</Badge>
-              </div>
-              <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">Park St. Drainage</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">5 repeated complaints</p>
-                </div>
-                <Badge variant="secondary" className="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">High</Badge>
-              </div>
+              ))}
             </div>
             <Button variant="outline" className="w-full mt-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
               View All Escalations

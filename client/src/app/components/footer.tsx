@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Github,
   Twitter,
@@ -10,8 +11,16 @@ import {
   Shield,
   Zap,
 } from "lucide-react";
+import { dashboardService } from "../../services/dashboard.service";
 
 export function Footer() {
+  const { data } = useQuery({
+    queryKey: ["public", "landing"],
+    queryFn: dashboardService.landing,
+  });
+  const hero = data?.hero ?? {};
+  const pipeline = data?.pipeline ?? {};
+
   return (
     <footer className="py-16 px-6 relative bg-white dark:bg-[#0B1020] border-t border-slate-200 dark:border-slate-800">
       <div className="max-w-7xl mx-auto">
@@ -38,10 +47,10 @@ export function Footer() {
               </div>
               <div>
                 <p className="font-semibold dark:text-white text-gray-900">
-                  All Systems Operational
+                  {hero.active != null ? "Database Connected" : "System Initializing"}
                 </p>
                 <p className="text-sm dark:text-gray-400 text-gray-600">
-                  Last updated: 2 minutes ago
+                  Live data from PostgreSQL/Prisma
                 </p>
               </div>
             </div>
@@ -51,10 +60,10 @@ export function Footer() {
                 <Activity className="w-5 h-5 text-green-400" />
                 <div>
                   <p className="text-sm font-semibold dark:text-white text-gray-900">
-                    99.9%
+                    {pipeline.accuracy ?? 0}%
                   </p>
                   <p className="text-xs dark:text-gray-400 text-gray-600">
-                    AI Uptime
+                    Model Confidence
                   </p>
                 </div>
               </div>
@@ -73,10 +82,10 @@ export function Footer() {
                 <Zap className="w-5 h-5 text-purple-400" />
                 <div>
                   <p className="text-sm font-semibold dark:text-white text-gray-900">
-                    Fast
+                    {(hero.resolved ?? 0).toLocaleString()}
                   </p>
                   <p className="text-xs dark:text-gray-400 text-gray-600">
-                    &lt;2s Response
+                    Resolved Cases
                   </p>
                 </div>
               </div>

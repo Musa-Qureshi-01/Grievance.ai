@@ -1,6 +1,8 @@
 import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "./ui/badge";
 import { TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { dashboardService } from "../../services/dashboard.service";
 import {
   LineChart,
   Line,
@@ -17,63 +19,48 @@ import {
   Legend,
 } from "recharts";
 
-const activityData = [
-  { name: "Mon", complaints: 145 },
-  { name: "Tue", complaints: 189 },
-  { name: "Wed", complaints: 167 },
-  { name: "Thu", complaints: 203 },
-  { name: "Fri", complaints: 178 },
-  { name: "Sat", complaints: 134 },
-  { name: "Sun", complaints: 98 },
-];
-
-const categoryData = [
-  { name: "Infrastructure", value: 35, color: "#06b6d4" },
-  { name: "Water Supply", value: 25, color: "#8b5cf6" },
-  { name: "Sanitation", value: 20, color: "#10b981" },
-  { name: "Electricity", value: 15, color: "#f59e0b" },
-  { name: "Others", value: 5, color: "#ec4899" },
-];
-
-const departmentData = [
-  { dept: "PWD", pending: 23, resolved: 67 },
-  { dept: "Water", pending: 15, resolved: 45 },
-  { dept: "Electric", pending: 12, resolved: 38 },
-  { dept: "Health", pending: 8, resolved: 29 },
-];
-
-const recentActivity = [
-  {
-    id: 1,
-    title: "Road repair on MG Road",
-    status: "In Progress",
-    time: "2 mins ago",
-    priority: "High",
-  },
-  {
-    id: 2,
-    title: "Water leakage complaint",
-    status: "Assigned",
-    time: "5 mins ago",
-    priority: "Medium",
-  },
-  {
-    id: 3,
-    title: "Street light not working",
-    status: "Resolved",
-    time: "15 mins ago",
-    priority: "Low",
-  },
-  {
-    id: 4,
-    title: "Garbage collection delay",
-    status: "Pending",
-    time: "23 mins ago",
-    priority: "High",
-  },
-];
-
 export function DashboardPreview() {
+  const { data } = useQuery({
+    queryKey: ["analytics", "dashboard-preview"],
+    queryFn: dashboardService.dashboard,
+  });
+  const stats = data?.stats ?? {};
+  const activityData = data?.activityData?.some((item: any) => item.complaints > 0)
+    ? data.activityData
+    : [
+        { name: "Mon", complaints: 145 },
+        { name: "Tue", complaints: 189 },
+        { name: "Wed", complaints: 167 },
+        { name: "Thu", complaints: 203 },
+        { name: "Fri", complaints: 178 },
+        { name: "Sat", complaints: 134 },
+        { name: "Sun", complaints: 98 },
+      ];
+  const categoryData = data?.categoryData?.length
+    ? data.categoryData
+    : [
+        { name: "Infrastructure", value: 35, color: "#06b6d4" },
+        { name: "Water Supply", value: 25, color: "#8b5cf6" },
+        { name: "Sanitation", value: 20, color: "#10b981" },
+        { name: "Electricity", value: 15, color: "#f59e0b" },
+        { name: "Others", value: 5, color: "#ec4899" },
+      ];
+  const departmentData = data?.departmentData?.length
+    ? data.departmentData
+    : [
+        { dept: "PWD", pending: 23, resolved: 67 },
+        { dept: "Water", pending: 15, resolved: 45 },
+        { dept: "Electric", pending: 12, resolved: 38 },
+        { dept: "Health", pending: 8, resolved: 29 },
+      ];
+  const recentActivity = data?.recentActivity?.length
+    ? data.recentActivity
+    : [
+        { id: "proto-1", title: "Road repair workflow", status: "In Progress", time: new Date(), priority: "High" },
+        { id: "proto-2", title: "Water leakage routing", status: "Assigned", time: new Date(), priority: "Medium" },
+        { id: "proto-3", title: "Street light repair", status: "Resolved", time: new Date(), priority: "Low" },
+      ];
+
   return (
     <section
       id="dashboard"
@@ -116,7 +103,7 @@ export function DashboardPreview() {
               </Badge>
             </div>
             <p className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
-              1,247
+              {stats.totalActive || 1247}
             </p>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
               Total Active Complaints
@@ -139,7 +126,7 @@ export function DashboardPreview() {
               </Badge>
             </div>
             <p className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
-              983
+              {stats.resolvedWeek || 983}
             </p>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
               Resolved This Week
@@ -162,7 +149,7 @@ export function DashboardPreview() {
               </Badge>
             </div>
             <p className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
-              156
+              {stats.processing || 156}
             </p>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
               Currently Processing
@@ -185,7 +172,7 @@ export function DashboardPreview() {
               </Badge>
             </div>
             <p className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
-              42
+              {stats.highPriority || 42}
             </p>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
               High Priority Alerts
@@ -353,7 +340,7 @@ export function DashboardPreview() {
                       {activity.status}
                     </p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">
-                      {activity.time}
+                      {new Date(activity.time).toLocaleDateString()}
                     </p>
                   </div>
                 </motion.div>

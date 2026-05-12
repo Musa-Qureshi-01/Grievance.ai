@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import { motion } from "motion/react";
 import {
@@ -16,8 +17,10 @@ import {
   UserCircle,
   Map,
   ShieldAlert,
+  LogOut,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { useCurrentUser } from "../../hooks/useAuth";
 
 const adminSidebarLinks = [
   { icon: AlertTriangle, label: "Operations", path: "/admin-dashboard/operations" },
@@ -30,10 +33,19 @@ const adminSidebarLinks = [
 ];
 
 export function AdminDashboardLayout() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const profile = { name: "Admin User", role: "System Admin" };
+  const { data: user } = useCurrentUser();
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("currentUser");
+    queryClient.clear();
+    navigate("/auth");
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B1020] flex transition-colors duration-300">
@@ -83,8 +95,8 @@ export function AdminDashboardLayout() {
                 <UserCircle className="w-5 h-5 text-slate-600 dark:text-slate-400" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">{profile.name}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{profile.role}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.name || "Admin"}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{user?.role?.replaceAll("_", " ") || "System user"}</p>
               </div>
             </div>
           </div>
@@ -122,6 +134,17 @@ export function AdminDashboardLayout() {
             <Button variant="ghost" size="icon" className="relative text-slate-600 dark:text-slate-400">
               <Bell className="h-5 w-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              className="text-slate-600 dark:text-slate-400"
+              aria-label="Logout"
+              title="Logout"
+            >
+              <LogOut className="h-5 w-5" />
             </Button>
 
             <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>

@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import {
@@ -11,56 +12,18 @@ import {
   ArrowUpRight,
   Lightbulb,
 } from "lucide-react";
-
-const taskQueue = [
-  {
-    id: "CMP-2847",
-    title: "Pothole repair on MG Road near City Mall",
-    priority: "High",
-    department: "PWD",
-    location: "Zone A, Sector 12",
-    sla: "2h 15m",
-    status: "urgent",
-    aiSuggestion: "Coordinate with traffic dept for road closure",
-  },
-  {
-    id: "CMP-2846",
-    title: "Water supply disruption in Residential Area",
-    priority: "Medium",
-    department: "Water Supply",
-    location: "Zone B, Sector 8",
-    sla: "4h 30m",
-    status: "normal",
-    aiSuggestion: "Schedule maintenance team for inspection",
-  },
-  {
-    id: "CMP-2845",
-    title: "Street light malfunction on Park Street",
-    priority: "Low",
-    department: "Electricity",
-    location: "Zone C, Sector 5",
-    sla: "8h 45m",
-    status: "normal",
-    aiSuggestion: "Route to nearest electrical contractor",
-  },
-];
-
-const escalationAlerts = [
-  {
-    id: 1,
-    message: "CMP-2832 exceeded SLA by 2 hours",
-    time: "5 mins ago",
-    type: "warning",
-  },
-  {
-    id: 2,
-    message: "High priority complaint auto-escalated",
-    time: "12 mins ago",
-    type: "alert",
-  },
-];
+import { dashboardService } from "../../services/dashboard.service";
 
 export function OfficerWorkflow() {
+  const { data } = useQuery({
+    queryKey: ["public", "landing"],
+    queryFn: dashboardService.landing,
+  });
+  const workflow = data?.officerWorkflow ?? {};
+  const taskQueue = workflow.taskQueue ?? [];
+  const escalationAlerts = workflow.alerts ?? [];
+  const overview = workflow.overview ?? {};
+
   return (
     <section
       id="workflow"
@@ -219,10 +182,10 @@ export function OfficerWorkflow() {
                 </div>
                 <div>
                   <p className="font-semibold text-slate-900 dark:text-white">
-                    Officer Sharma
+                    Live Operations
                   </p>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    PWD Department
+                    Prisma-backed workflow
                   </p>
                 </div>
               </div>
@@ -230,7 +193,7 @@ export function OfficerWorkflow() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
                   <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                    47
+                    {overview.completed ?? 0}
                   </p>
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Completed
@@ -238,7 +201,7 @@ export function OfficerWorkflow() {
                 </div>
                 <div className="text-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
                   <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    12
+                    {overview.inProgress ?? 0}
                   </p>
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     In Progress
@@ -269,7 +232,7 @@ export function OfficerWorkflow() {
                           {alert.message}
                         </p>
                         <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                          {alert.time}
+                          {new Date(alert.time).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -290,26 +253,26 @@ export function OfficerWorkflow() {
                     Assigned
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    23
+                    {overview.assigned ?? 0}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
                     Completed
                   </span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">15</span>
+                  <span className="font-semibold text-green-600 dark:text-green-400">{overview.completed ?? 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
                     In Progress
                   </span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">5</span>
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">{overview.inProgress ?? 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
                     Pending
                   </span>
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">3</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">{overview.pending ?? 0}</span>
                 </div>
               </div>
 
@@ -319,7 +282,7 @@ export function OfficerWorkflow() {
                     Avg. Resolution Time
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    2.3h
+                    Live
                   </span>
                 </div>
               </div>

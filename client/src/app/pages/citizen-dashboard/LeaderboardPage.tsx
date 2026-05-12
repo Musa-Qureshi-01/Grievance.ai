@@ -1,32 +1,15 @@
 import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import { Trophy, Medal, Star, ArrowUpRight } from "lucide-react";
+import { dashboardService } from "../../../services/dashboard.service";
 
 export function CitizenLeaderboard() {
-    const leaders = [
-        { rank: 1, name: "Sarah J.", points: 2450, reports: 42, badge: "Gold" },
-        {
-            rank: 2,
-            name: "Michael R.",
-            points: 2100,
-            reports: 38,
-            badge: "Silver",
-        },
-        {
-            rank: 3,
-            name: "Emily W.",
-            points: 1850,
-            reports: 31,
-            badge: "Bronze",
-        },
-        { rank: 4, name: "David L.", points: 1600, reports: 28, badge: "Hero" },
-        {
-            rank: 5,
-            name: "Amanda T.",
-            points: 1420,
-            reports: 22,
-            badge: "Hero",
-        },
-    ];
+    const { data } = useQuery({
+        queryKey: ["leaderboard"],
+        queryFn: dashboardService.leaderboard,
+    });
+    const leaders = data?.leaders ?? [];
+    const me = data?.me ?? {};
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
@@ -50,7 +33,7 @@ export function CitizenLeaderboard() {
                         Your Rank
                     </div>
                     <div className="text-3xl font-bold text-slate-900 dark:text-white">
-                        #42
+                        {me.rank ? `#${me.rank}` : "Pending"}
                     </div>
                 </div>
                 <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
@@ -58,7 +41,7 @@ export function CitizenLeaderboard() {
                         Total Points
                     </div>
                     <div className="text-3xl font-bold text-slate-900 dark:text-white">
-                        850
+                        {me.points ?? 0}
                     </div>
                 </div>
                 <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
@@ -66,7 +49,7 @@ export function CitizenLeaderboard() {
                         Next Badge In
                     </div>
                     <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 flex items-center justify-center gap-1">
-                        150 <Star className="w-5 h-5" />
+                        {Math.max(0, 1000 - (me.points ?? 0))} <Star className="w-5 h-5" />
                     </div>
                 </div>
             </div>

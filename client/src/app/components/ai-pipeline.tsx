@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import {
   FileText,
   Brain,
@@ -9,6 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { dashboardService } from "../../services/dashboard.service";
 
 const pipelineSteps = [
   {
@@ -29,7 +31,7 @@ const pipelineSteps = [
     icon: Target,
     title: "Classification",
     description: "Smart categorization",
-    detail: "98.6% accuracy",
+    detail: "Live model confidence",
     color: "from-teal-400 to-green-500",
   },
   {
@@ -56,6 +58,19 @@ const pipelineSteps = [
 ];
 
 export function AIPipeline() {
+  const { data } = useQuery({
+    queryKey: ["public", "landing"],
+    queryFn: dashboardService.landing,
+  });
+  const pipeline = data?.pipeline ?? {};
+  const steps = pipelineSteps.map((step) => {
+    if (step.title === "Classification") return { ...step, detail: `${pipeline.accuracy ?? 0}% model confidence` };
+    if (step.title === "Decision") return { ...step, detail: `${pipeline.highPriority ?? 0} high-priority cases` };
+    if (step.title === "Routing") return { ...step, detail: `${pipeline.departments?.length ?? 0} departments active` };
+    if (step.title === "Dashboard") return { ...step, detail: `${pipeline.processed ?? 0} records tracked` };
+    return step;
+  });
+
   return (
     <section className="py-24 px-6 relative bg-white dark:bg-[#0B1020]">
       <div className="max-w-7xl mx-auto">
@@ -84,7 +99,7 @@ export function AIPipeline() {
             <div className="absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-green-500 to-purple-500 opacity-30 transform -translate-y-1/2"></div>
 
             <div className="grid grid-cols-6 gap-4 relative">
-              {pipelineSteps.map((step, index) => (
+              {steps.map((step, index) => (
                 <motion.div
                   key={step.title}
                   initial={{ opacity: 0, y: 30 }}
@@ -148,7 +163,7 @@ export function AIPipeline() {
 
         {/* Mobile Pipeline */}
         <div className="lg:hidden space-y-4">
-          {pipelineSteps.map((step, index) => (
+          {steps.map((step, index) => (
             <motion.div
               key={step.title}
               initial={{ opacity: 0, x: -30 }}
@@ -205,33 +220,33 @@ export function AIPipeline() {
                   Pipeline Status: Active
                 </p>
                 <p className="text-sm dark:text-gray-400 text-gray-600">
-                  Processing 347 complaints in real-time
+                  Processing {pipeline.active ?? 0} active complaints in real-time
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-6">
               <div className="text-center">
                 <p className="text-2xl font-bold dark:text-cyan-400 text-cyan-600">
-                  2.1s
+                  {pipeline.processed ?? 0}
                 </p>
                 <p className="text-xs dark:text-gray-400 text-gray-600">
-                  Avg Processing
+                  Processed
                 </p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold dark:text-green-400 text-green-600">
-                  98.6%
+                  {pipeline.accuracy ?? 0}%
                 </p>
                 <p className="text-xs dark:text-gray-400 text-gray-600">
-                  Accuracy
+                  Model Confidence
                 </p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold dark:text-purple-400 text-purple-600">
-                  24/7
+                  {pipeline.departments?.length ?? 0}
                 </p>
                 <p className="text-xs dark:text-gray-400 text-gray-600">
-                  Uptime
+                  Departments
                 </p>
               </div>
             </div>
