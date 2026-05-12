@@ -2,50 +2,47 @@ import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useTheme } from "next-themes";
 import { motion } from "motion/react";
-import { 
-  LayoutDashboard, 
-  Users, 
-  AlertTriangle, 
-  BarChart3, 
-  Settings, 
-  Shield, 
-  Bell, 
+import {
+  Users,
+  AlertTriangle,
+  BarChart3,
+  Settings,
+  Shield,
+  Bell,
   Search,
   Menu,
   Moon,
   Sun,
   UserCircle,
   Map,
-  ShieldAlert
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 
-const sidebarLinks = [
-  { icon: LayoutDashboard, label: "Overview", path: "/dashboard" },
-  { icon: AlertTriangle, label: "Operations", path: "/dashboard/operations" },
-  { icon: BarChart3, label: "Governance", path: "/dashboard/governance" },
-  { icon: Users, label: "Citizens", path: "/dashboard/citizens" },
-  { icon: Shield, label: "Intelligence", path: "/dashboard/intelligence" },
-  { icon: Map, label: "Live Monitoring", path: "/dashboard/monitoring" },
-  { icon: ShieldAlert, label: "Super Admin", path: "/dashboard/admin" },
-  { icon: Settings, label: "Settings", path: "/dashboard/settings" },
+const adminSidebarLinks = [
+  { icon: AlertTriangle, label: "Operations", path: "/admin-dashboard/operations" },
+  { icon: BarChart3, label: "Governance", path: "/admin-dashboard/governance" },
+  { icon: Users, label: "Citizens", path: "/admin-dashboard/citizens" },
+  { icon: Shield, label: "Intelligence", path: "/admin-dashboard/intelligence" },
+  { icon: Map, label: "Live Monitoring", path: "/admin-dashboard/monitoring" },
+  { icon: ShieldAlert, label: "Super Admin", path: "/admin-dashboard/admin" },
+  { icon: Settings, label: "Settings", path: "/admin-dashboard/settings" },
 ];
 
-export function DashboardLayout() {
+export function AdminDashboardLayout() {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const profile = { name: "Admin User", role: "System Admin" };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B1020] flex transition-colors duration-300">
-      {/* Sidebar */}
-      <aside 
+      <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="h-full flex flex-col">
-          {/* Logo */}
           <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-200 dark:border-slate-800">
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
               <Shield className="w-4 h-4 text-white" />
@@ -58,61 +55,59 @@ export function DashboardLayout() {
             </div>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-            {sidebarLinks.map((link) => {
+            {adminSidebarLinks.map((link) => {
               const isActive = location.pathname === link.path;
               return (
                 <Link
                   key={link.path}
                   to={link.path}
                   className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive 
-                      ? "bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400" 
+                    isActive
+                      ? "bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400"
                       : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200"
                   }`}
                 >
-                  <link.icon className={`w-4 h-4 ${isActive ? "text-blue-700 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                  <link.icon
+                    className={`w-4 h-4 ${isActive ? "text-blue-700 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`}
+                  />
                   {link.label}
                 </Link>
               );
             })}
           </nav>
 
-          {/* User Profile */}
           <div className="p-4 border-t border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
                 <UserCircle className="w-5 h-5 text-slate-600 dark:text-slate-400" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">Admin User</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">System Admin</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">{profile.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{profile.role}</p>
               </div>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
-        {/* Header */}
         <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 z-40 sticky top-0">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="lg:hidden text-slate-600 dark:text-slate-400"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               <Menu className="h-5 w-5" />
             </Button>
-            
+
             <div className="hidden sm:flex relative w-64 group">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-              <input 
-                type="text" 
-                placeholder="Search cases, officers..." 
+              <input
+                type="text"
+                placeholder="Search cases, officers..."
                 className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500/50 transition-shadow text-slate-900 dark:text-white placeholder:text-slate-500"
               />
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -128,25 +123,20 @@ export function DashboardLayout() {
               <Bell className="h-5 w-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
             </Button>
-            
+
             <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
-            
+
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="text-slate-600 dark:text-slate-400"
             >
-              {theme === "dark" ? (
-                <Sun className="h-5 w-5" />
-              ) : (
-                <Moon className="h-5 w-5" />
-              )}
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
           <motion.div
             key={location.pathname}
@@ -160,9 +150,8 @@ export function DashboardLayout() {
         </main>
       </div>
 
-      {/* Mobile Overlay */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />

@@ -55,7 +55,7 @@ const activeIncidents = [
   }
 ];
 
-export function OfficerOperations() {
+export function AdminOperations() {
   return (
     <div className="space-y-6">
       {/* Page Header */}

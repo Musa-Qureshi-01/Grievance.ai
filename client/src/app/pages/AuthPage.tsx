@@ -2,8 +2,12 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { Shield, Mail, Lock, User, Building, ArrowRight } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { Navigate, useNavigate } from "react-router";
 
 export function AuthPage() {
+
+  const navigate = useNavigate();
+
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [role, setRole] = useState<"citizen" | "officer" | "admin">("citizen");
   
@@ -187,7 +191,13 @@ export function AuthPage() {
                       });
                       const data = await res.json();
                       if (data.success) {
-                        window.location.href = role === "citizen" ? "/citizen-dashboard" : "/officer-dashboard";
+                        if (role === "citizen") {
+                          navigate("/citizen-dashboard");
+                        } else if (role === "officer") {
+                          navigate("/officer-dashboard");
+                        } else if (role === "admin") {
+                          navigate("/admin-dashboard");
+                        }
                       } else {
                         setError(data.error || "Failed to register");
                       }
@@ -199,7 +209,13 @@ export function AuthPage() {
                     // Mock login success
                     setLoading(true);
                     setTimeout(() => {
-                      window.location.href = role === "citizen" ? "/citizen-dashboard" : "/officer-dashboard";
+                      if (role === "citizen") {
+                        navigate("/citizen-dashboard");
+                      } else if (role === "officer") {
+                        navigate("/officer-dashboard");
+                      } else if (role === "admin") {
+                        navigate("/admin-dashboard");
+                      }
                     }, 1000);
                   }
                 }}

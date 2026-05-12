@@ -1,10 +1,15 @@
 import { ThemeProvider } from "./components/theme-provider";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { LandingPage } from "./pages/LandingPage";
-import { DashboardLayout } from "./layouts/dashboard-layout";
+import { AdminDashboardLayout } from "./layouts/AdminDashboardLayout";
+import { OfficerDashboardLayout } from "./layouts/OfficerDashboardLayout";
 import { CitizenLayout } from "./layouts/CitizenLayout";
 
-import { OfficerOperations } from "./pages/OfficerOperations";
+import { OfficerOperations } from "./pages/officer-dashboard/OperationsPage";
+import { OfficerAIWorkspace } from "./pages/officer-dashboard/AIWorkspacePage";
+import { OfficerIntelligence } from "./pages/officer-dashboard/IntelligencePage";
+import { OfficerLeaderboard } from "./pages/officer-dashboard/LeaderboardPage";
+import { OfficerProfile } from "./pages/officer-dashboard/ProfilePage";
 import { GovernanceDashboard } from "./pages/GovernanceDashboard";
 import { IntelligenceCenter } from "./pages/IntelligenceCenter";
 import { RealTimeMonitoring } from "./pages/RealTimeMonitoring";
@@ -19,6 +24,7 @@ import { CitizenLeaderboard } from "./pages/citizen-dashboard/LeaderboardPage";
 import { CitizenCommunity } from "./pages/citizen-dashboard/CommunityPage";
 import { CitizenContact } from "./pages/citizen-dashboard/ContactPage";
 import { CitizenProfile } from "./pages/citizen-dashboard/ProfilePage";
+import { AdminOperations } from "./pages/AdminOperations";
 
 export default function App() {
   return (
@@ -36,9 +42,9 @@ export default function App() {
             <Route path="contact" element={<CitizenContact />} />
             <Route path="profile" element={<CitizenProfile />} />
           </Route>
-          <Route path="/admin-dashboard" element={<DashboardLayout />}>
+          <Route path="/admin-dashboard" element={<AdminDashboardLayout />}>
             <Route index element={<Navigate to="operations" replace />} />
-            <Route path="operations" element={<OfficerOperations />} />
+            <Route path="operations" element={<AdminOperations />} />
             <Route path="governance" element={<GovernanceDashboard />} />
             <Route path="citizens" element={<ManageCitizens />} />
             <Route path="intelligence" element={<IntelligenceCenter />} />
@@ -47,10 +53,14 @@ export default function App() {
             <Route path="settings" element={<SettingsPage />} />
             {/* Add other dashboard routes here as they are created */}
           </Route>
-          <Route path="/officer-dashboard" element={<DashboardLayout />}>
+          <Route path="/officer-dashboard" element={<OfficerDashboardLayout />}>
             <Route index element={<Navigate to="operations" replace />} />
             <Route path="operations" element={<OfficerOperations />} />
-          </Route>
+            <Route path="ai-workspace" element={<OfficerAIWorkspace />} />
+            <Route path="intelligence" element={<OfficerIntelligence />} />
+            <Route path="leaderboard" element={<OfficerLeaderboard />} />
+            <Route path="profile" element={<OfficerProfile />} />
+          </Route>  
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

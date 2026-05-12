@@ -16,22 +16,10 @@ import { Sun, Moon } from "lucide-react";
 
 const citizenLinks = [
     { icon: Home, label: "Dashboard", path: "/citizen-dashboard" },
-    {
-        icon: PlusCircle,
-        label: "New Grievance",
-        path: "/citizen-dashboard/submit",
-    },
-    {
-        icon: Trophy,
-        label: "Leaderboard",
-        path: "/citizen-dashboard/leaderboard",
-    },
+    { icon: PlusCircle, label: "New Grievance", path: "/citizen-dashboard/submit" },
+    { icon: Trophy, label: "Leaderboard", path: "/citizen-dashboard/leaderboard" },
     { icon: Users, label: "Community", path: "/citizen-dashboard/community" },
-    {
-        icon: MessageSquare,
-        label: "Contact Us",
-        path: "/citizen-dashboard/contact",
-    },
+    { icon: MessageSquare, label: "Contact Us", path: "/citizen-dashboard/contact" },
 ];
 
 export function CitizenLayout() {
@@ -88,9 +76,9 @@ export function CitizenLayout() {
                                                 }}
                                             />
                                         )}
-                                        <link.icon
+                                        {/* <link.icon
                                             className={`w-4 h-4 ${isActive ? "text-blue-700 dark:text-blue-400" : "text-slate-400"}`}
-                                        />
+                                        /> */}
                                         {link.label}
                                     </Link>
                                 );
