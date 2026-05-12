@@ -1,27 +1,73 @@
 import twilio from 'twilio';
 
-function normalizeWhatsAppNumber(phone) {
+export function normalizePhoneNumber(phone) {
   if (!phone) return null;
-  const raw = String(phone).trim();
-  if (raw.startsWith('whatsapp:')) return raw;
-  const digits = raw.replace(/[^\d+]/g, '');
-  if (!digits) return null;
-  return `whatsapp:${digits.startsWith('+') ? digits : `+${digits}`}`;
+  const raw = String(phone).trim().replace(/^whatsapp:/i, '');
+  const digitsOnly = raw.replace(/\D/g, '');
+
+  if (!digitsOnly) return null;
+
+  if (raw.startsWith('+')) {
+    return `+${digitsOnly}`;
+  }
+
+  if (digitsOnly.length === 10) {
+    return `+91${digitsOnly}`;
+  }
+
+  if (digitsOnly.length === 12 && digitsOnly.startsWith('91')) {
+    return `+${digitsOnly}`;
+  }
+
+  if (digitsOnly.length >= 11 && digitsOnly.length <= 15) {
+    return `+${digitsOnly}`;
+  }
+
+  return null;
+}
+
+function normalizeWhatsAppNumber(phone) {
+  const normalizedPhone = normalizePhoneNumber(phone);
+  return normalizedPhone ? `whatsapp:${normalizedPhone}` : null;
 }
 
 function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_WHATSAPP_FROM;
+  const from = normalizeWhatsAppNumber(process.env.TWILIO_WHATSAPP_FROM);
+  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
-  if (!accountSid || !authToken || !from) {
+  if (!accountSid || !authToken || (!from && !messagingServiceSid)) {
     return null;
   }
 
   return {
     client: twilio(accountSid, authToken),
     from,
+    messagingServiceSid,
   };
+}
+
+function mapTwilioError(error) {
+  const message = error?.message || 'Twilio WhatsApp send failed';
+
+  if (message.includes('could not find a Channel with the specified From address')) {
+    return 'Twilio WhatsApp sender is not enabled on this account. Set a valid WhatsApp-enabled sender in TWILIO_WHATSAPP_FROM or use TWILIO_MESSAGING_SERVICE_SID.';
+  }
+
+  if (message.includes('has not joined the sandbox')) {
+    return 'Recipient has not joined the Twilio WhatsApp sandbox yet.';
+  }
+
+  if (message.includes('The From phone number') || message.includes('Invalid From')) {
+    return 'Configured Twilio WhatsApp sender is invalid.';
+  }
+
+  if (message.includes('not a valid phone number')) {
+    return 'Recipient phone number is not a valid WhatsApp destination.';
+  }
+
+  return message;
 }
 
 export async function sendWhatsAppMessage(toPhone, body) {
@@ -29,16 +75,32 @@ export async function sendWhatsAppMessage(toPhone, body) {
   const to = normalizeWhatsAppNumber(toPhone);
 
   if (!config || !to) {
-    return { sent: false, reason: 'Twilio WhatsApp is not configured or user phone is missing' };
+    return { sent: false, reason: 'Twilio WhatsApp is not configured or user phone is invalid' };
   }
 
-  const message = await config.client.messages.create({
-    from: config.from,
-    to,
-    body,
-  });
+  try {
+    const payload = config.messagingServiceSid
+      ? {
+          messagingServiceSid: config.messagingServiceSid,
+          to,
+          body,
+        }
+      : {
+          from: config.from,
+          to,
+          body,
+        };
 
-  return { sent: true, sid: message.sid };
+    const message = await config.client.messages.create(payload);
+
+    return { sent: true, sid: message.sid };
+  } catch (error) {
+    return {
+      sent: false,
+      reason: mapTwilioError(error),
+      code: error?.code,
+    };
+  }
 }
 
 export async function sendComplaintConfirmation({ user, complaint, prediction }) {
@@ -66,6 +128,5 @@ export function twilioTextResponse(message) {
 }
 
 export function normalizePhoneForUser(from) {
-  const normalized = normalizeWhatsAppNumber(from);
-  return normalized?.replace('whatsapp:', '') || null;
+  return normalizePhoneNumber(from);
 }

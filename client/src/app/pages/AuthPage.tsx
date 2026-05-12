@@ -7,6 +7,17 @@ import { Shield, Mail, Lock, User, Building, ArrowRight, Phone } from "lucide-re
 import { Button } from "../components/ui/button";
 import { authService } from "../../services/auth.service";
 
+const roleHome: Record<string, string> = {
+  citizen: "/dashboard",
+  student: "/dashboard",
+  user: "/dashboard",
+  officer: "/office",
+  office: "/office",
+  staff: "/office",
+  admin: "/admin",
+  super_admin: "/admin",
+};
+
 export function AuthPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -21,7 +32,7 @@ export function AuthPage() {
     localStorage.setItem("currentUser", JSON.stringify(result.user));
     await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     toast.success("Signed in successfully");
-    navigate(result.user.role === "citizen" ? "/citizen-dashboard" : "/admin-dashboard");
+    navigate(roleHome[result.user.role] || "/dashboard", { replace: true });
   };
 
   const loginMutation = useMutation({

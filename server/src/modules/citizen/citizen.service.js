@@ -1,4 +1,5 @@
 import { prisma } from '../../prisma/client.js';
+import { normalizePhoneNumber } from '../../services/whatsapp.service.js';
 
 function label(value) {
   return String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
@@ -107,10 +108,17 @@ export async function updateCitizenProfile(userId, data) {
     throw error;
   }
 
+  const normalizedPhone =
+    data.phone === undefined
+      ? user.phone
+      : data.phone
+        ? normalizePhoneNumber(data.phone)
+        : null;
+
   const updatedUser = await prisma.user.update({
     where: { id: userId },
     data: {
-      phone: data.phone || null,
+      phone: normalizedPhone,
       address: data.address || user.address,
     },
   });

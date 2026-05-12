@@ -48,6 +48,7 @@ class ApiClient {
           statusCode: error.response?.status,
           data: error.response?.data?.data,
         };
+        const normalizedError = Object.assign(new Error(apiError.message), apiError);
 
         if (error.response?.status === 401) {
           localStorage.removeItem("authToken");
@@ -57,7 +58,7 @@ class ApiClient {
           toast.error(apiError.message);
         }
 
-        throw apiError;
+        throw normalizedError;
       },
     );
   }

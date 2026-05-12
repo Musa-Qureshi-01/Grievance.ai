@@ -565,6 +565,13 @@ export function SubmitGrievance() {
                         className="bg-blue-600 hover:bg-blue-700 text-white rounded-md px-6 text-sm font-semibold shadow-md shadow-blue-500/20"
                         onClick={async () => {
                             if (step < 3) {
+                                if (
+                                    step === 1 &&
+                                    (!description.trim() || description.trim().length < 20)
+                                ) {
+                                    setSubmitError("Please add a more detailed complaint description before continuing.");
+                                    return;
+                                }
                                 setStep(step + 1);
                                 return;
                             }
@@ -596,9 +603,9 @@ export function SubmitGrievance() {
                                 alert(`Official Grievance Submitted Successfully.\n\nTracking ID: ${complaint.id}`);
                             } catch (error) {
                                 setSubmitError(
-                                    error instanceof Error
+                                    error instanceof Error && error.message
                                         ? error.message
-                                        : "Failed to submit complaint",
+                                        : "Failed to submit complaint. Please check your login session and try again.",
                                 );
                             } finally {
                                 setIsSubmitting(false);

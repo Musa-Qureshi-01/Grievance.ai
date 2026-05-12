@@ -16,11 +16,11 @@ import { Sun, Moon } from "lucide-react";
 import { useCurrentUser } from "../../hooks/useAuth";
 
 const citizenLinks = [
-    { icon: Home, label: "Dashboard", path: "/citizen-dashboard" },
-    { icon: PlusCircle, label: "New Grievance", path: "/citizen-dashboard/submit" },
-    { icon: Trophy, label: "Leaderboard", path: "/citizen-dashboard/leaderboard" },
-    { icon: Users, label: "Community", path: "/citizen-dashboard/community" },
-    { icon: MessageSquare, label: "Contact Us", path: "/citizen-dashboard/contact" },
+    { icon: Home, label: "Dashboard", path: "/dashboard" },
+    { icon: PlusCircle, label: "New Grievance", path: "/dashboard/submit" },
+    { icon: Trophy, label: "Leaderboard", path: "/dashboard/leaderboard" },
+    { icon: Users, label: "Community", path: "/dashboard/community" },
+    { icon: MessageSquare, label: "Contact Us", path: "/dashboard/contact" },
 ];
 
 export function CitizenLayout() {
@@ -108,7 +108,7 @@ export function CitizenLayout() {
                         <div className="w-px h-5 bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
 
                         <Link
-                            to="/citizen-dashboard/profile"
+                            to="/dashboard/profile"
                             className="hidden sm:flex items-center gap-3 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                         >
                             <div className="text-right">

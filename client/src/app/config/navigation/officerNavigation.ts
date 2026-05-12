@@ -18,31 +18,31 @@ export const officerNavigation: OfficerNavItem[] = [
   {
     id: "operations",
     label: "Operations Console",
-    path: "/officer-dashboard/operations",
+    path: "/office/operations",
     icon: AlertTriangle,
   },
   {
     id: "ai-workspace",
     label: "AI Assistant Workspace",
-    path: "/officer-dashboard/ai-workspace",
+    path: "/office/ai-workspace",
     icon: BrainCircuit,
   },
   {
     id: "intelligence",
     label: "Grievance Intelligence",
-    path: "/officer-dashboard/intelligence",
+    path: "/office/intelligence",
     icon: ShieldCheck,
   },
   {
     id: "leaderboard",
     label: "Performance Leaderboard",
-    path: "/officer-dashboard/leaderboard",
+    path: "/office/leaderboard",
     icon: Trophy,
   },
   {
     id: "profile",
     label: "Profile",
-    path: "/officer-dashboard/profile",
+    path: "/office/profile",
     icon: UserCircle2,
   },
 ];

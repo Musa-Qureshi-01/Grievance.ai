@@ -14,6 +14,11 @@ grievance/
 .idea/
 *.swp
 
+# Environment files
+.env
+.env.*
+!.env.example
+
 # Cache
 .cache/
 .parcel-cache/

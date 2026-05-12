@@ -18,18 +18,20 @@ import {
   Map,
   ShieldAlert,
   LogOut,
+  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useCurrentUser } from "../../hooks/useAuth";
 
-const adminSidebarLinks = [
-  { icon: AlertTriangle, label: "Operations", path: "/admin-dashboard/operations" },
-  { icon: BarChart3, label: "Governance", path: "/admin-dashboard/governance" },
-  { icon: Users, label: "Citizens", path: "/admin-dashboard/citizens" },
-  { icon: Shield, label: "Intelligence", path: "/admin-dashboard/intelligence" },
-  { icon: Map, label: "Live Monitoring", path: "/admin-dashboard/monitoring" },
-  { icon: ShieldAlert, label: "Super Admin", path: "/admin-dashboard/admin" },
-  { icon: Settings, label: "Settings", path: "/admin-dashboard/settings" },
+const sidebarLinks = [
+  { icon: LayoutDashboard, label: "Overview", path: "/admin" },
+  { icon: AlertTriangle, label: "Operations", path: "/admin/operations" },
+  { icon: BarChart3, label: "Governance", path: "/admin/governance" },
+  { icon: Users, label: "Citizens", path: "/admin/citizens" },
+  { icon: Shield, label: "Intelligence", path: "/admin/intelligence" },
+  { icon: Map, label: "Live Monitoring", path: "/admin/monitoring" },
+  { icon: ShieldAlert, label: "Super Admin", path: "/admin/admin" },
+  { icon: Settings, label: "Settings", path: "/admin/settings" },
 ];
 
 export function AdminDashboardLayout() {
@@ -68,7 +70,7 @@ export function AdminDashboardLayout() {
           </div>
 
           <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-            {adminSidebarLinks.map((link) => {
+            {sidebarLinks.map((link) => {
               const isActive = location.pathname === link.path;
               return (
                 <Link

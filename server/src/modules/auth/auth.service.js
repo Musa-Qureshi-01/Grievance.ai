@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../prisma/client.js';
+import { normalizePhoneNumber } from '../../services/whatsapp.service.js';
 
 const TOKEN_TTL = process.env.JWT_EXPIRES_IN || '7d';
 
@@ -42,13 +43,14 @@ export async function registerUser({ name, email, password, role, phone }) {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
+  const normalizedPhone = normalizePhoneNumber(phone);
   const user = await prisma.user.create({
     data: {
       name,
       email,
       passwordHash,
       role: normalizeRole(role),
-      phone: phone || null,
+      phone: normalizedPhone,
     },
   });
 

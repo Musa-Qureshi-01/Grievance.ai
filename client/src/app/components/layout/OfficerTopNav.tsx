@@ -1,6 +1,7 @@
 import {
     Bell,
     BrainCircuit,
+    LogOut,
     Moon,
     Search,
     Signal,
@@ -12,14 +13,21 @@ import { Button } from "../ui/button";
 interface OfficerTopNavProps {
     onOpenMobile: () => void;
     onToggleTheme: () => void;
+    onLogout: () => void;
     theme: string | undefined;
+    user?: { name?: string; role?: string; email?: string } | null;
 }
 
 export function OfficerTopNav({
     onOpenMobile,
     onToggleTheme,
+    onLogout,
     theme,
+    user,
 }: OfficerTopNavProps) {
+    const displayName = user?.name || "Officer";
+    const displayRole = user?.role?.replaceAll("_", " ") || "Field officer";
+
     return (
         <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
             <div className="flex items-center gap-4">
@@ -46,7 +54,7 @@ export function OfficerTopNav({
             <div className="flex items-center gap-2 sm:gap-4">
                 <div className="hidden sm:flex items-center gap-2 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                     <Signal className="h-3 w-3" />
-                    Live sync
+                    {user ? "Live sync" : "Guest session"}
                 </div>
 
                 <Button
@@ -79,10 +87,29 @@ export function OfficerTopNav({
 
                 <Button
                     variant="ghost"
-                    size="icon"
-                    className="text-slate-600 dark:text-slate-400"
+                    className="hidden sm:flex h-10 items-center gap-2 px-2 text-slate-600 dark:text-slate-400"
+                    title={user?.email || displayName}
                 >
                     <UserCircle2 className="h-5 w-5" />
+                    <span className="max-w-32 truncate text-left text-xs">
+                        <span className="block font-semibold text-slate-800 dark:text-slate-100">
+                            {displayName}
+                        </span>
+                        <span className="block capitalize text-slate-500 dark:text-slate-400">
+                            {displayRole}
+                        </span>
+                    </span>
+                </Button>
+
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onLogout}
+                    className="text-slate-600 dark:text-slate-400"
+                    aria-label="Logout"
+                    title="Logout"
+                >
+                    <LogOut className="h-5 w-5" />
                 </Button>
             </div>
         </header>

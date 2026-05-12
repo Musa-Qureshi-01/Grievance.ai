@@ -27,68 +27,66 @@ export async function createComplaint(data, actorId, options = {}) {
     ? modelPriority
     : String(data.priority || 'MEDIUM').toUpperCase();
 
-  const result = await prisma.$transaction(async (tx) => {
-    const complaint = await tx.complaint.create({
-      data: {
-        title: data.title,
-        description: data.description,
-        priority: complaintPriority,
-        departmentId: data.departmentId || null,
-        citizenId: actorId,
-        assignedOfficerId: data.assignedOfficerId || null,
-      },
-    });
-    let savedPrediction = null;
+  const complaint = await prisma.complaint.create({
+    data: {
+      title: data.title,
+      description: data.description,
+      priority: complaintPriority,
+      departmentId: data.departmentId || null,
+      citizenId: actorId,
+      assignedOfficerId: data.assignedOfficerId || null,
+    },
+  });
+  let savedPrediction = null;
 
-    if (!prediction.unavailable) {
-      savedPrediction = await tx.prediction.create({
-        data: {
-          complaintId: complaint.id,
-          category: data.category || data.subCategory || 'General',
-          confidenceScore: prediction.validity_confidence,
-          validity: prediction.validity,
-          validityConfidence: prediction.validity_confidence,
-          priority: prediction.priority,
-          priorityConfidence: prediction.priority_confidence,
-          trustScore: prediction.trust_score,
-        },
-      });
-    }
-
-    await tx.complaintStatusHistory.create({
+  if (!prediction.unavailable) {
+    savedPrediction = await prisma.prediction.create({
       data: {
         complaintId: complaint.id,
-        oldStatus: null,
-        newStatus: complaint.status,
-        changedById: actorId,
-        note: 'Complaint submitted',
+        category: data.category || data.subCategory || 'General',
+        confidenceScore: prediction.validity_confidence,
+        validity: prediction.validity,
+        validityConfidence: prediction.validity_confidence,
+        priority: prediction.priority,
+        priorityConfidence: prediction.priority_confidence,
+        trustScore: prediction.trust_score,
       },
     });
+  }
 
-    await tx.activityLog.create({
-      data: {
-        userId: actorId,
-        action: 'COMPLAINT_CREATED',
-        entityType: 'Complaint',
-        entityId: complaint.id,
-        meta: { title: complaint.title, source: data.source || 'portal' },
-      },
-    });
-
-    return {
-      ...complaint,
-      prediction: savedPrediction
-        ? {
-            complaint: data.description,
-            validity: savedPrediction.validity,
-            validity_confidence: Number(savedPrediction.validityConfidence),
-            priority: savedPrediction.priority,
-            priority_confidence: Number(savedPrediction.priorityConfidence),
-            trust_score: Number(savedPrediction.trustScore),
-          }
-        : prediction,
-    };
+  await prisma.complaintStatusHistory.create({
+    data: {
+      complaintId: complaint.id,
+      oldStatus: null,
+      newStatus: complaint.status,
+      changedById: actorId,
+      note: 'Complaint submitted',
+    },
   });
+
+  await prisma.activityLog.create({
+    data: {
+      userId: actorId,
+      action: 'COMPLAINT_CREATED',
+      entityType: 'Complaint',
+      entityId: complaint.id,
+      meta: { title: complaint.title, source: data.source || 'portal' },
+    },
+  });
+
+  const result = {
+    ...complaint,
+    prediction: savedPrediction
+      ? {
+          complaint: data.description,
+          validity: savedPrediction.validity,
+          validity_confidence: Number(savedPrediction.validityConfidence),
+          priority: savedPrediction.priority,
+          priority_confidence: Number(savedPrediction.priorityConfidence),
+          trust_score: Number(savedPrediction.trustScore),
+        }
+      : prediction,
+  };
 
   let whatsappNotification = { sent: false, reason: 'WhatsApp notification disabled for this source' };
 
@@ -217,43 +215,41 @@ export async function updateComplaint(id, data, currentUser) {
   const nextPriority = data.priority ? String(data.priority).toUpperCase() : existing.priority;
   const statusChanged = nextStatus !== existing.status;
 
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.complaint.update({
-      where: { id },
-      data: {
-        title: data.title ?? existing.title,
-        description: data.description ?? existing.description,
-        status: nextStatus,
-        priority: nextPriority,
-        departmentId: data.departmentId ?? existing.departmentId,
-        assignedOfficerId: data.assignedOfficerId ?? existing.assignedOfficerId,
-      },
-    });
-
-    if (statusChanged) {
-      await tx.complaintStatusHistory.create({
-        data: {
-          complaintId: id,
-          oldStatus: existing.status,
-          newStatus: nextStatus,
-          changedById: currentUser.id,
-          note: data.note || 'Status updated',
-        },
-      });
-    }
-
-    await tx.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'COMPLAINT_UPDATED',
-        entityType: 'Complaint',
-        entityId: id,
-        meta: data,
-      },
-    });
-
-    return updated;
+  const updated = await prisma.complaint.update({
+    where: { id },
+    data: {
+      title: data.title ?? existing.title,
+      description: data.description ?? existing.description,
+      status: nextStatus,
+      priority: nextPriority,
+      departmentId: data.departmentId ?? existing.departmentId,
+      assignedOfficerId: data.assignedOfficerId ?? existing.assignedOfficerId,
+    },
   });
+
+  if (statusChanged) {
+    await prisma.complaintStatusHistory.create({
+      data: {
+        complaintId: id,
+        oldStatus: existing.status,
+        newStatus: nextStatus,
+        changedById: currentUser.id,
+        note: data.note || 'Status updated',
+      },
+    });
+  }
+
+  await prisma.activityLog.create({
+    data: {
+      userId: currentUser.id,
+      action: 'COMPLAINT_UPDATED',
+      entityType: 'Complaint',
+      entityId: id,
+      meta: data,
+    },
+  });
+
+  return updated;
 }
 
 export async function deleteComplaint(id, currentUser) {
@@ -270,18 +266,16 @@ export async function deleteComplaint(id, currentUser) {
     throw error;
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.activityLog.create({
-      data: {
-        userId: currentUser.id,
-        action: 'COMPLAINT_DELETED',
-        entityType: 'Complaint',
-        entityId: id,
-      },
-    });
-
-    await tx.complaint.delete({ where: { id } });
+  await prisma.activityLog.create({
+    data: {
+      userId: currentUser.id,
+      action: 'COMPLAINT_DELETED',
+      entityType: 'Complaint',
+      entityId: id,
+    },
   });
+
+  await prisma.complaint.delete({ where: { id } });
 
   return { id };
 }

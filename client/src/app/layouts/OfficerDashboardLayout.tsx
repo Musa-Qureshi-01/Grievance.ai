@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Outlet, useLocation } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import { motion } from "motion/react";
 import { OfficerSidebar } from "../components/layout/OfficerSidebar";
@@ -7,12 +8,23 @@ import { OfficerTopNav } from "../components/layout/OfficerTopNav";
 import { RightContextPanel } from "../components/layout/RightContextPanel";
 import { OfficerLayoutWrapper } from "../components/layout/OfficerLayoutWrapper";
 import { useSidebarState } from "../hooks/useSidebarState";
+import { useCurrentUser } from "../../hooks/useAuth";
 
 export function OfficerDashboardLayout() {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isCollapsed, setIsCollapsed } = useSidebarState();
+  const { data: user } = useCurrentUser();
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("currentUser");
+    queryClient.clear();
+    navigate("/auth", { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B1020] flex transition-colors duration-300">
@@ -21,6 +33,7 @@ export function OfficerDashboardLayout() {
         isMobileOpen={isMobileMenuOpen}
         onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
+        user={user}
       />
 
       <div
@@ -32,6 +45,8 @@ export function OfficerDashboardLayout() {
           onOpenMobile={() => setIsMobileMenuOpen(true)}
           onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
           theme={theme}
+          user={user}
+          onLogout={handleLogout}
         />
 
         <OfficerLayoutWrapper

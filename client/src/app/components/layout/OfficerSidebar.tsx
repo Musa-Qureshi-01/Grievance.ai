@@ -9,6 +9,7 @@ interface OfficerSidebarProps {
     isMobileOpen: boolean;
     onToggleCollapse: () => void;
     onCloseMobile: () => void;
+    user?: { name?: string; role?: string } | null;
 }
 
 export function OfficerSidebar({
@@ -16,8 +17,17 @@ export function OfficerSidebar({
     isMobileOpen,
     onToggleCollapse,
     onCloseMobile,
+    user,
 }: OfficerSidebarProps) {
     const location = useLocation();
+    const displayName = user?.name || "Officer User";
+    const displayRole = user?.role?.replaceAll("_", " ") || "Field Officer";
+    const initials = displayName
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join("") || "OF";
 
     return (
         <aside
@@ -101,16 +111,16 @@ export function OfficerSidebar({
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
                             <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                                OF
+                                {initials}
                             </span>
                         </div>
                         {!isCollapsed && (
                             <div>
                                 <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                                    Officer User
+                                    {displayName}
                                 </p>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    Field Officer
+                                    {displayRole}
                                 </p>
                             </div>
                         )}

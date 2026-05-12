@@ -3,6 +3,7 @@
   import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
   import { Toaster } from "react-hot-toast";
   import App from "./app/App.tsx";
+  // @ts-ignore: Allow side-effect import for CSS when no module declaration is present
   import "./styles/index.css";
 
   const queryClient = new QueryClient({
