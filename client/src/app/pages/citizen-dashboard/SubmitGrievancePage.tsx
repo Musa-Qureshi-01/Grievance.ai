@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { MapPin, Send, UploadCloud, Info, Mic } from "lucide-react";
+import { Camera, MapPin, Send, UploadCloud, Info, Mic } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { complaintService } from "../../../services/complaint.service";
 import { speechLanguages, useAzureSpeech } from "../../../hooks/useAzureSpeech";
@@ -8,10 +8,12 @@ import { speechLanguages, useAzureSpeech } from "../../../hooks/useAzureSpeech";
 type UploadItem = {
     file: File;
     url: string;
+    dataUrl: string;
+    source: "upload" | "camera";
 };
 
 function normalizePrediction(complaint: any) {
-    if (complaint.prediction) {
+    if (complaint.prediction && complaint.prediction.status !== "QUEUED") {
         return complaint.prediction;
     }
 
@@ -26,10 +28,40 @@ function normalizePrediction(complaint: any) {
         };
     }
 
+    const model1 = complaint.aiModelOutputs?.find(
+        (output: any) => output.modelName === "MODEL_1_AUTHENTICITY_PRIORITY",
+    );
+    if (model1) {
+        const processed = model1.processedOutput || {};
+        return {
+            validity: processed.validity || model1.classification,
+            validity_confidence: Number(processed.validityConfidence || model1.confidenceScore || 0),
+            priority: processed.priority || model1.priorityLevel,
+            priority_confidence: Number(processed.priorityConfidence || model1.priorityScore || 0),
+            trust_score: processed.trustScore,
+            unavailable: model1.status === "FAILED",
+            error: model1.errorLog?.message,
+        };
+    }
+
     return {
-        unavailable: true,
-        error: "No model output returned by backend. Check that the FastAPI model service is running on port 8000 and restart the Express server.",
+        unavailable: false,
+        status: complaint.prediction?.status || "QUEUED",
+        error: "AI processing is still running. The values will appear here automatically.",
     };
+}
+
+async function waitForPrediction(complaintId: string) {
+    let latest: any = null;
+    for (let attempt = 0; attempt < 18; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 1200 : 2500));
+        latest = await complaintService.getById(complaintId);
+        const model1 = latest.aiModelOutputs?.find(
+            (output: any) => output.modelName === "MODEL_1_AUTHENTICITY_PRIORITY",
+        );
+        if (latest.predictions?.length || model1) return latest;
+    }
+    return latest;
 }
 
 function routedDepartment(category: string) {
@@ -46,6 +78,10 @@ function severityLabel(priority?: string) {
 }
 
 export function SubmitGrievance() {
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const cameraStreamRef = useRef<MediaStream | null>(null);
+    const geoWatchRef = useRef<number | null>(null);
     const [step, setStep] = useState(1);
     const today = new Date().toISOString().split("T")[0];
     const [primaryCategory, setPrimaryCategory] = useState("Infrastructure & Roads");
@@ -55,11 +91,15 @@ export function SubmitGrievance() {
     const [speechLanguage, setSpeechLanguage] = useState("hi-IN");
 
     const [location, setLocation] = useState("");
+    const [geoAccuracy, setGeoAccuracy] = useState<number | null>(null);
+    const [isWatchingLocation, setIsWatchingLocation] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
 
     const [uploads, setUploads] = useState<UploadItem[]>([]);
     const [imageError, setImageError] = useState<string | null>(null);
+    const [isCameraActive, setIsCameraActive] = useState(false);
+    const [cameraError, setCameraError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [predictionResult, setPredictionResult] = useState<null | {
@@ -74,6 +114,7 @@ export function SubmitGrievance() {
             reason?: string;
             sid?: string;
         };
+        status?: string;
         unavailable?: boolean;
         error?: string;
     }>(null);
@@ -86,8 +127,18 @@ export function SubmitGrievance() {
     useEffect(() => {
         return () => {
             uploads.forEach((u) => URL.revokeObjectURL(u.url));
+            if (geoWatchRef.current !== null) navigator.geolocation.clearWatch(geoWatchRef.current);
+            cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
         };
     }, [uploads]);
+
+    const applyPosition = (pos: GeolocationPosition) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        setGeoAccuracy(Math.round(accuracy));
+        setIsLocating(false);
+        setLocationError(null);
+    };
 
     const handleDetectLocation = () => {
         if (!navigator.geolocation) {
@@ -98,11 +149,7 @@ export function SubmitGrievance() {
         setLocationError(null);
 
         navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const { latitude, longitude } = pos.coords;
-                setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
-                setIsLocating(false);
-            },
+            applyPosition,
             () => {
                 setLocationError(
                     "Unable to detect location. Please allow permission.",
@@ -111,9 +158,37 @@ export function SubmitGrievance() {
             },
             { timeout: 8000, enableHighAccuracy: true },
         );
+
+        if (geoWatchRef.current === null) {
+            geoWatchRef.current = navigator.geolocation.watchPosition(
+                applyPosition,
+                () => {
+                    setLocationError("Live location updates are unavailable.");
+                    setIsWatchingLocation(false);
+                },
+                { timeout: 10000, enableHighAccuracy: true, maximumAge: 5000 },
+            );
+            setIsWatchingLocation(true);
+        }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const stopLiveLocation = () => {
+        if (geoWatchRef.current !== null) {
+            navigator.geolocation.clearWatch(geoWatchRef.current);
+            geoWatchRef.current = null;
+        }
+        setIsWatchingLocation(false);
+    };
+
+    const fileToDataUrl = (file: File) =>
+        new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
 
@@ -130,13 +205,18 @@ export function SubmitGrievance() {
             setImageError(null);
         }
 
-        setUploads((prev) => {
-            const remaining = maxFiles - prev.length;
-            const next = filtered.slice(0, remaining).map((file) => ({
+        const nextUploads = await Promise.all(
+            filtered.slice(0, Math.max(0, maxFiles - uploads.length)).map(async (file) => ({
                 file,
                 url: URL.createObjectURL(file),
-            }));
-            return [...prev, ...next];
+                dataUrl: await fileToDataUrl(file),
+                source: "upload" as const,
+            })),
+        );
+
+        setUploads((prev) => {
+            const remaining = maxFiles - prev.length;
+            return [...prev, ...nextUploads.slice(0, remaining)];
         });
 
         // Allow re-selecting the same file
@@ -150,6 +230,57 @@ export function SubmitGrievance() {
             if (removed) URL.revokeObjectURL(removed.url);
             return next;
         });
+    };
+
+    const startCamera = async () => {
+        setCameraError(null);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: "environment" } },
+                audio: false,
+            });
+            cameraStreamRef.current = stream;
+            if (videoRef.current) videoRef.current.srcObject = stream;
+            setIsCameraActive(true);
+        } catch {
+            setCameraError("Camera permission is required to capture live evidence.");
+        }
+    };
+
+    const stopCamera = () => {
+        cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+        cameraStreamRef.current = null;
+        if (videoRef.current) videoRef.current.srcObject = null;
+        setIsCameraActive(false);
+    };
+
+    const capturePhoto = () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        if (!video || !canvas) return;
+        const maxFiles = 5;
+        if (uploads.length >= maxFiles) {
+            setImageError(`Max ${maxFiles} images allowed.`);
+            return;
+        }
+
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        const context = canvas.getContext("2d");
+        if (!context) return;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+        const file = new File([dataUrl], `live-photo-${Date.now()}.jpg`, { type: "image/jpeg" });
+
+        setUploads((prev) => [
+            ...prev,
+            {
+                file,
+                url: dataUrl,
+                dataUrl,
+                source: "camera",
+            },
+        ]);
     };
 
     return (
@@ -393,9 +524,27 @@ export function SubmitGrievance() {
                                         >
                                             {isLocating
                                                 ? "Detecting..."
-                                                : "Detect"}
+                                                : isWatchingLocation
+                                                  ? "Live"
+                                                  : "Detect"}
                                         </Button>
+                                        {isWatchingLocation && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={stopLiveLocation}
+                                                className="shrink-0 h-[40px] px-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
+                                            >
+                                                Stop
+                                            </Button>
+                                        )}
                                     </div>
+                                    {geoAccuracy !== null && (
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            Live accuracy: within {geoAccuracy}m
+                                        </p>
+                                    )}
                                     {locationError && (
                                         <p className="text-xs text-red-500 mt-1">
                                             {locationError}
@@ -407,8 +556,18 @@ export function SubmitGrievance() {
                                         <div className="text-center z-10 flex flex-col items-center">
                                             <MapPin className="w-6 h-6 text-blue-500 mb-2" />
                                             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                Geospatial Locator Active
+                                                {location ? location : "Geospatial Locator Active"}
                                             </span>
+                                            {location && (
+                                                <a
+                                                    href={`https://www.google.com/maps?q=${encodeURIComponent(location)}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                                >
+                                                    Open in Maps
+                                                </a>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -417,6 +576,51 @@ export function SubmitGrievance() {
                                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">
                                         Photographic Evidence
                                     </label>
+
+                                    <div className="mb-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3">
+                                        <div className="aspect-video overflow-hidden rounded-md bg-slate-900">
+                                            <video
+                                                ref={videoRef}
+                                                autoPlay
+                                                playsInline
+                                                muted
+                                                className={`h-full w-full object-cover ${isCameraActive ? "block" : "hidden"}`}
+                                            />
+                                            {!isCameraActive && (
+                                                <div className="flex h-full items-center justify-center text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                                    Live camera preview
+                                                </div>
+                                            )}
+                                            <canvas ref={canvasRef} className="hidden" />
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-2 gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={isCameraActive ? capturePhoto : startCamera}
+                                                className="rounded-md"
+                                            >
+                                                <Camera className="mr-2 h-4 w-4" />
+                                                {isCameraActive ? "Capture" : "Start Camera"}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={stopCamera}
+                                                disabled={!isCameraActive}
+                                                className="rounded-md"
+                                            >
+                                                Stop Camera
+                                            </Button>
+                                        </div>
+                                        {cameraError && (
+                                            <p className="mt-2 text-xs text-red-500">
+                                                {cameraError}
+                                            </p>
+                                        )}
+                                    </div>
 
                                     {/* Clickable upload area */}
                                     <label className="flex-1 w-full border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-md p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-950 transition-colors cursor-pointer bg-white dark:bg-slate-900">
@@ -458,6 +662,9 @@ export function SubmitGrievance() {
                                                         alt={`preview-${idx}`}
                                                         className="w-full h-24 object-cover rounded-md border border-slate-200 dark:border-slate-800"
                                                     />
+                                                    <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
+                                                        {item.source}
+                                                    </span>
                                                     <button
                                                         type="button"
                                                         onClick={() =>
@@ -593,6 +800,10 @@ export function SubmitGrievance() {
                                     priority: "medium",
                                     category: primaryCategory,
                                     subCategory,
+                                    attachments: uploads.map((item) => ({
+                                        fileUrl: item.dataUrl,
+                                        fileName: item.file.name,
+                                    })),
                                 });
 
                                 setPredictionResult({
@@ -600,6 +811,17 @@ export function SubmitGrievance() {
                                     ...normalizePrediction(complaint),
                                     whatsappNotification: complaint.whatsappNotification,
                                 });
+
+                                waitForPrediction(complaint.id)
+                                    .then((latest) => {
+                                        if (!latest) return;
+                                        setPredictionResult({
+                                            complaint: latest.id,
+                                            ...normalizePrediction(latest),
+                                            whatsappNotification: complaint.whatsappNotification,
+                                        });
+                                    })
+                                    .catch(() => undefined);
                                 alert(`Official Grievance Submitted Successfully.\n\nTracking ID: ${complaint.id}`);
                             } catch (error) {
                                 setSubmitError(
@@ -632,6 +854,11 @@ export function SubmitGrievance() {
                             {predictionResult.unavailable && (
                                 <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
                                     Model service unavailable: {predictionResult.error}
+                                </p>
+                            )}
+                            {!predictionResult.unavailable && predictionResult.status === "QUEUED" && (
+                                <p className="mt-2 text-sm text-blue-700 dark:text-blue-300">
+                                    {predictionResult.error}
                                 </p>
                             )}
                             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">

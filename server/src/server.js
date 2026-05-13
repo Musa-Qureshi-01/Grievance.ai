@@ -1,7 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import morgan from 'morgan';
 import authRoutes from './modules/auth/auth.routes.js';
 import complaintRoutes from './modules/complaints/complaint.routes.js';
@@ -13,24 +14,44 @@ import citizenRoutes from './modules/citizen/citizen.routes.js';
 import publicRoutes from './modules/public/public.routes.js';
 import speechRoutes from './modules/speech/speech.routes.js';
 import whatsappRoutes from './modules/whatsapp/whatsapp.routes.js';
+import aiRoutes from './modules/ai/ai.routes.js';
 import { prisma } from './prisma/client.js';
 import { errorMiddleware, notFoundHandler } from './middleware/error.middleware.js';
 import { requestLogger } from './middleware/requestLogger.js';
-
-dotenv.config();
+import { initializeRealtime } from './services/realtime.service.js';
 
 const app = express();
 const port = process.env.PORT || 5000;
-const allowedOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+const normalizeOrigin = (origin = '') => origin.trim().replace(/\/+$/, '');
+const parseOrigins = (origins = '') =>
+  origins
+    .split(',')
+    .map(normalizeOrigin)
+    .filter(Boolean);
+
+const allowedOrigins = new Set([
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'https://grievance-io.vercel.app',
+  ...parseOrigins(process.env.CLIENT_ORIGIN),
+  ...parseOrigins(process.env.CLIENT_ORIGINS),
+]);
 
 app.use(helmet());
 app.use(
   cors({
-    origin: allowedOrigin,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(normalizeOrigin(origin))) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
     credentials: true,
   }),
 );
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '25mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan('dev'));
 app.use(requestLogger);
@@ -60,6 +81,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/speech', speechRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
@@ -70,7 +92,10 @@ app.use('/api/citizen', citizenRoutes);
 app.use(notFoundHandler);
 app.use(errorMiddleware);
 
-const server = app.listen(port, () => {
+const httpServer = http.createServer(app);
+initializeRealtime(httpServer, allowedOrigins);
+
+const server = httpServer.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
 

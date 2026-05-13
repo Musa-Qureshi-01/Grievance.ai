@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 declare global {
   interface ImportMetaEnv {
     readonly VITE_API_URL?: string;
+    readonly VITE_SOCKET_URL?: string;
   }
 
   interface ImportMeta {
@@ -66,6 +67,16 @@ class ApiClient {
   async request<T>(config: AxiosRequestConfig): Promise<T> {
     const response = await this.client.request<ApiEnvelope<T>>(config);
     return response.data.data;
+  }
+
+  async download(url: string, params?: unknown) {
+    const response = await this.client.request<Blob>({
+      method: "GET",
+      url,
+      params,
+      responseType: "blob",
+    });
+    return response.data;
   }
 
   get<T>(url: string, params?: unknown) {

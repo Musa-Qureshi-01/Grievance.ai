@@ -13,7 +13,7 @@ import {
 import { Button } from "../components/ui/button";
 import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
-import { useCurrentUser } from "../../hooks/useAuth";
+import { useAuth } from "../contexts/AuthContext";
 
 const citizenLinks = [
     { icon: Home, label: "Dashboard", path: "/dashboard" },
@@ -27,7 +27,7 @@ export function CitizenLayout() {
     const navigate = useNavigate();
     const { theme, setTheme } = useTheme();
     const location = useLocation();
-    const { data: user } = useCurrentUser();
+    const { user, signOut } = useAuth();
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#020617] flex flex-col font-inter">
@@ -116,7 +116,7 @@ export function CitizenLayout() {
                                     {user?.name || "Citizen"}
                                 </div>
                                 <div className="text-[10px] text-slate-500">
-                                    Verified Citizen
+                                    {user?.emailVerified ? "Verified Citizen" : "Citizen"}
                                 </div>
                             </div>
                             <UserCircle className="w-8 h-8 text-slate-400" />
@@ -126,10 +126,9 @@ export function CitizenLayout() {
                             variant="outline"
                             size="sm"
                             className="rounded-md text-xs font-medium ml-2 shadow-sm border-slate-200 dark:border-slate-700"
-                            onClick={() => {
-                                localStorage.removeItem("authToken");
-                                localStorage.removeItem("currentUser");
-                                navigate("/auth");
+                            onClick={async () => {
+                                await signOut();
+                                navigate("/");
                             }}
                         >
                             Sign out

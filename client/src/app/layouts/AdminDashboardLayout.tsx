@@ -21,7 +21,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { useCurrentUser } from "../../hooks/useAuth";
+import { useAuth } from "../contexts/AuthContext";
 
 const sidebarLinks = [
   { icon: LayoutDashboard, label: "Overview", path: "/admin" },
@@ -40,13 +40,12 @@ export function AdminDashboardLayout() {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { data: user } = useCurrentUser();
+  const { user, signOut } = useAuth();
 
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("currentUser");
+  const handleLogout = async () => {
+    await signOut();
     queryClient.clear();
-    navigate("/auth");
+    navigate("/");
   };
 
   return (
@@ -92,14 +91,24 @@ export function AdminDashboardLayout() {
           </nav>
 
           <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-                <UserCircle className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+            <div className="flex items-center justify-between group">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                  <UserCircle className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.name || "Admin"}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{user?.email || "admin@govops.ai"}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.name || "Admin"}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{user?.role?.replaceAll("_", " ") || "System user"}</p>
-              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-500"
+                onClick={handleLogout}
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         </div>

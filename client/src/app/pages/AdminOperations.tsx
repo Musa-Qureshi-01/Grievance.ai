@@ -16,6 +16,7 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { dashboardService } from "../../services/dashboard.service";
+import { complaintService } from "../../services/complaint.service";
 
 export function AdminOperations() {
   const { data } = useQuery({
@@ -24,6 +25,18 @@ export function AdminOperations() {
   });
   const activeIncidents = data?.items ?? [];
   const stats = data?.stats ?? {};
+  const downloadWorkReport = async (complaintId?: string | null) => {
+    if (!complaintId) return;
+    const blob = await complaintService.downloadWorkReport(complaintId);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `work-report-${complaintId}.html`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -38,7 +51,11 @@ export function AdminOperations() {
             <Filter className="w-4 h-4 mr-2" />
             Filters
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+            disabled={!activeIncidents[0]?.complaintId}
+            onClick={() => downloadWorkReport(activeIncidents[0]?.complaintId)}
+          >
             Generate Report
           </Button>
         </div>
@@ -188,9 +205,14 @@ export function AdminOperations() {
                     <CheckCircle2 className="w-4 h-4 mr-2" />
                     Accept & Dispatch
                   </Button>
-                  <Button variant="outline" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 h-9 hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <Button
+                    variant="outline"
+                    className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 h-9 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    disabled={!incident.complaintId}
+                    onClick={() => downloadWorkReport(incident.complaintId)}
+                  >
                     <FileText className="w-4 h-4 mr-2" />
-                    View Details
+                    Download Report
                   </Button>
                 </div>
               </div>

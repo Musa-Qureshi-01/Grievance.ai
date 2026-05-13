@@ -9,11 +9,13 @@ import {
     MapPin,
     Clock,
     CheckCircle2,
+    Download,
     AlertCircle,
     Trophy,
     Eye,
     Trash2,
     X,
+    Send,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { useCurrentUser } from "../../../hooks/useAuth";
@@ -23,6 +25,8 @@ export function CitizenOverview() {
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
+    const [feedbackRating, setFeedbackRating] = useState(5);
+    const [feedbackReview, setFeedbackReview] = useState("");
     const { data: user } = useCurrentUser();
     const { data } = useQuery({
         queryKey: ["complaints", "mine", searchTerm],
@@ -44,16 +48,60 @@ export function CitizenOverview() {
             queryClient.invalidateQueries({ queryKey: ["citizen", "profile"] });
         },
     });
+    const feedbackMutation = useMutation({
+        mutationFn: ({ id, rating, review }: { id: string; rating: number; review: string }) =>
+            complaintService.addFeedback(id, { rating, review }),
+        onSuccess: () => {
+            toast.success("Feedback shared with officer");
+            setFeedbackReview("");
+            queryClient.invalidateQueries({ queryKey: ["complaints", "detail", selectedComplaintId] });
+            queryClient.invalidateQueries({ queryKey: ["complaints", "mine"] });
+        },
+    });
     const complaints = data?.items ?? [];
     const activeCount = complaints.filter((item) => !["RESOLVED", "CLOSED", "REJECTED"].includes(item.status)).length;
     const resolvedCount = complaints.filter((item) => ["RESOLVED", "CLOSED"].includes(item.status)).length;
-    const selectedPrediction = useMemo(() => selectedComplaint?.predictions?.[0], [selectedComplaint]);
+    const selectedModel1 = useMemo(
+        () => selectedComplaint?.aiModelOutputs?.find((output) => output.modelName === "MODEL_1_AUTHENTICITY_PRIORITY"),
+        [selectedComplaint],
+    );
+    const selectedPrediction = useMemo(() => {
+        const savedPrediction = selectedComplaint?.predictions?.[0];
+        if (savedPrediction) return savedPrediction;
+
+        if (selectedModel1) {
+            const processed = selectedModel1.processedOutput || {};
+            return {
+                validity: (processed.validity as string | undefined) || selectedModel1.classification,
+                priority: (processed.priority as string | undefined) || selectedModel1.priorityLevel,
+                trustScore: processed.trustScore as number | string | null | undefined,
+            };
+        }
+
+        return null;
+    }, [selectedComplaint, selectedModel1]);
+    const selectedModel2 = useMemo(
+        () => selectedComplaint?.aiModelOutputs?.find((output) => output.modelName === "MODEL_2_CLASSIFICATION_SEVERITY"),
+        [selectedComplaint],
+    );
     const isCompletedStatus = (status: string) => ["RESOLVED", "CLOSED"].includes(status);
 
     const handleDelete = (id: string) => {
         const confirmed = window.confirm("Delete this complaint permanently?");
         if (!confirmed) return;
         deleteMutation.mutate(id);
+    };
+
+    const downloadWorkReport = async (id: string) => {
+        const blob = await complaintService.downloadWorkReport(id);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `work-report-${id}.html`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
     };
 
     return (
@@ -315,26 +363,54 @@ export function CitizenOverview() {
                                         </pre>
                                     </div>
 
-                                    {selectedPrediction && (
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                            <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-                                                <span className="block text-xs text-slate-500">Validity</span>
-                                                <span className="font-semibold text-slate-900 dark:text-white">
-                                                    {selectedPrediction.validity || "Model pending"}
-                                                </span>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+                                            <span className="block text-xs text-slate-500">Validity</span>
+                                            <span className="font-semibold text-slate-900 dark:text-white">
+                                                {selectedPrediction?.validity || "AI processing"}
+                                            </span>
+                                        </div>
+                                        <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+                                            <span className="block text-xs text-slate-500">AI Priority</span>
+                                            <span className="font-semibold text-slate-900 dark:text-white">
+                                                {selectedPrediction?.priority || "AI processing"}
+                                            </span>
+                                        </div>
+                                        <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+                                            <span className="block text-xs text-slate-500">Trust Score</span>
+                                            <span className="font-semibold text-slate-900 dark:text-white">
+                                                {selectedPrediction?.trustScore ?? "AI processing"}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {selectedModel2 && (
+                                        <div className="rounded-lg border border-cyan-200 bg-cyan-50/60 dark:border-cyan-900/40 dark:bg-cyan-950/20 p-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                <div>
+                                                    <span className="block text-xs text-slate-500">Estimated resolution</span>
+                                                    <span className="font-semibold text-slate-900 dark:text-white">
+                                                        {selectedModel2.estimatedResolutionHours ?? "Pending"}h
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="block text-xs text-slate-500">AI department</span>
+                                                    <span className="font-semibold text-slate-900 dark:text-white">
+                                                        {selectedModel2.suggestedDepartment || "Pending"}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="block text-xs text-slate-500">Risk category</span>
+                                                    <span className="font-semibold text-slate-900 dark:text-white">
+                                                        {selectedModel2.riskCategory || "Standard"}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-                                                <span className="block text-xs text-slate-500">AI Priority</span>
-                                                <span className="font-semibold text-slate-900 dark:text-white">
-                                                    {selectedPrediction.priority || "Model pending"}
-                                                </span>
-                                            </div>
-                                            <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-                                                <span className="block text-xs text-slate-500">Trust Score</span>
-                                                <span className="font-semibold text-slate-900 dark:text-white">
-                                                    {selectedPrediction.trustScore ?? "Model pending"}
-                                                </span>
-                                            </div>
+                                            {selectedModel2.aiRecommendation && (
+                                                <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">
+                                                    {selectedModel2.aiRecommendation}
+                                                </p>
+                                            )}
                                         </div>
                                     )}
 
@@ -351,6 +427,11 @@ export function CitizenOverview() {
                                                             {new Date(entry.createdAt).toLocaleString()}
                                                         </span>
                                                     </div>
+                                                    {entry.changedBy?.name && (
+                                                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                                                            Updated by {entry.changedBy.name}
+                                                        </p>
+                                                    )}
                                                     {entry.note && (
                                                         <p className="mt-1 text-xs text-slate-500">{entry.note}</p>
                                                     )}
@@ -359,7 +440,78 @@ export function CitizenOverview() {
                                         </div>
                                     </div>
 
+                                    {!!selectedComplaint.attachments?.length && (
+                                        <div>
+                                            <span className="block text-xs font-semibold text-slate-500 mb-3">Live Work Images</span>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                {selectedComplaint.attachments.map((attachment) => (
+                                                    <a
+                                                        key={attachment.id}
+                                                        href={attachment.fileUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="block overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800"
+                                                    >
+                                                        <img
+                                                            src={attachment.fileUrl}
+                                                            alt={attachment.fileName || "work progress"}
+                                                            className="h-28 w-full object-cover"
+                                                        />
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                                                Citizen Feedback
+                                            </span>
+                                            <select
+                                                value={feedbackRating}
+                                                onChange={(event) => setFeedbackRating(Number(event.target.value))}
+                                                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900"
+                                            >
+                                                {[5, 4, 3, 2, 1].map((rating) => (
+                                                    <option key={rating} value={rating}>{rating}/5</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <textarea
+                                            value={feedbackReview}
+                                            onChange={(event) => setFeedbackReview(event.target.value)}
+                                            placeholder="Share feedback for the assigned officer..."
+                                            className="mt-3 min-h-20 w-full resize-none rounded-md border border-slate-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                                        />
+                                        <div className="mt-3 flex justify-between gap-3">
+                                            <div className="space-y-2 text-xs text-slate-500">
+                                                {(selectedComplaint.feedback || []).map((item) => (
+                                                    <p key={item.id}>
+                                                        {item.rating}/5 {item.review || "No written review"}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                disabled={feedbackMutation.isPending}
+                                                onClick={() => feedbackMutation.mutate({
+                                                    id: selectedComplaint.id,
+                                                    rating: feedbackRating,
+                                                    review: feedbackReview,
+                                                })}
+                                            >
+                                                <Send className="mr-2 h-4 w-4" />
+                                                Send
+                                            </Button>
+                                        </div>
+                                    </div>
+
                                     <div className="flex justify-end gap-3 pt-2">
+                                        <Button variant="outline" onClick={() => downloadWorkReport(selectedComplaint.id)}>
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Download Report
+                                        </Button>
                                         <Button variant="outline" onClick={() => setSelectedComplaintId(null)}>
                                             Close
                                         </Button>

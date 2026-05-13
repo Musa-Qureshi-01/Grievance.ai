@@ -9,6 +9,8 @@ import {
     UserCircle2,
 } from "lucide-react";
 import { Button } from "../ui/button";
+import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router";
 
 interface OfficerTopNavProps {
     onOpenMobile: () => void;
@@ -25,6 +27,8 @@ export function OfficerTopNav({
     theme,
     user,
 }: OfficerTopNavProps) {
+    const { signOut } = useAuth();
+    const navigate = useNavigate();
     const displayName = user?.name || "Officer";
     const displayRole = user?.role?.replaceAll("_", " ") || "Field officer";
 
@@ -104,10 +108,13 @@ export function OfficerTopNav({
                 <Button
                     variant="ghost"
                     size="icon"
-                    onClick={onLogout}
-                    className="text-slate-600 dark:text-slate-400"
-                    aria-label="Logout"
-                    title="Logout"
+                    className="text-slate-600 dark:text-slate-400 hover:text-red-500"
+                    onClick={async () => {
+                        await signOut();
+                        navigate("/");
+                    }}
+                    aria-label="Sign out"
+                    title="Sign out"
                 >
                     <LogOut className="h-5 w-5" />
                 </Button>

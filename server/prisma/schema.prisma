@@ -46,6 +46,14 @@ enum TaskStatus {
   COMPLETED
 }
 
+enum AIExecutionStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
 model User {
   id                String                 @id @default(uuid()) @db.Uuid
   name              String
@@ -63,6 +71,7 @@ model User {
   notifications      Notification[]
   activityLogs      ActivityLog[]
   feedback          Feedback[]
+  suggestedAiOutputs AIModelOutput[]       @relation("SuggestedOfficerAIOutputs")
 }
 
 model Department {
@@ -94,6 +103,9 @@ model Complaint {
   statusHistory     ComplaintStatusHistory[]
   incidents         Incident[]
   predictions       Prediction[]
+  aiModelOutputs    AIModelOutput[]
+  predictionLogs    PredictionLog[]
+  resolutionPredictions ResolutionPrediction[]
   attachments       Attachment[]
   feedback          Feedback[]
 
@@ -222,4 +234,105 @@ model Feedback {
 
   @@index([complaintId])
   @@index([userId])
+}
+
+model AIModelOutput {
+  id                       String            @id @default(uuid()) @db.Uuid
+  complaintId              String            @db.Uuid
+  modelName                String
+  modelVersion             String?
+  status                   AIExecutionStatus @default(QUEUED)
+  confidenceScore          Decimal?          @db.Decimal(5, 2)
+  aiRecommendation         String?
+  priorityScore            Decimal?          @db.Decimal(5, 2)
+  severityAnalysis         String?
+  severityScore            Decimal?          @db.Decimal(5, 2)
+  emergencyLevel           String?
+  estimatedResolutionHours Int?
+  suggestedDepartment      String?
+  suggestedOfficerId       String?           @db.Uuid
+  riskCategory             String?
+  classification           String?
+  priorityLevel            String?
+  escalationRecommendation String?
+  areaImpact               String?
+  spamRisk                 String?
+  rawOutput                Json?
+  processedOutput          Json?
+  metadata                 Json?
+  errorLog                 Json?
+  processingStartedAt      DateTime?
+  processingCompletedAt    DateTime?
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+  complaint                Complaint         @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  suggestedOfficer         User?             @relation("SuggestedOfficerAIOutputs", fields: [suggestedOfficerId], references: [id], onDelete: SetNull)
+  resolutionPredictions    ResolutionPrediction[]
+
+  @@unique([complaintId, modelName])
+  @@index([complaintId])
+  @@index([modelName, status])
+  @@index([riskCategory])
+  @@index([priorityLevel])
+}
+
+model ModelAnalytics {
+  id                 String   @id @default(uuid()) @db.Uuid
+  modelName          String
+  date               DateTime @default(now())
+  totalRuns          Int      @default(0)
+  successfulRuns     Int      @default(0)
+  failedRuns         Int      @default(0)
+  avgConfidence      Decimal? @db.Decimal(5, 2)
+  avgProcessingMs    Int?
+  highRiskCount      Int      @default(0)
+  escalationCount    Int      @default(0)
+  metadata           Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([modelName, date])
+  @@index([modelName])
+  @@index([date])
+}
+
+model PredictionLog {
+  id             String            @id @default(uuid()) @db.Uuid
+  complaintId    String?           @db.Uuid
+  modelName      String
+  status         AIExecutionStatus
+  attempt        Int               @default(1)
+  durationMs     Int?
+  inputMetadata  Json?
+  outputMetadata Json?
+  errorMessage   String?
+  createdAt      DateTime          @default(now())
+  complaint      Complaint?        @relation(fields: [complaintId], references: [id], onDelete: SetNull)
+
+  @@index([complaintId])
+  @@index([modelName, status])
+  @@index([createdAt])
+}
+
+model ResolutionPrediction {
+  id                       String         @id @default(uuid()) @db.Uuid
+  complaintId              String         @db.Uuid
+  aiModelOutputId          String?        @db.Uuid
+  modelName                String
+  estimatedResolutionHours Int
+  estimatedResolvedAt      DateTime?
+  actualResolutionHours    Decimal?       @db.Decimal(8, 2)
+  accuracyScore            Decimal?       @db.Decimal(5, 2)
+  priorityLevel            PriorityLevel?
+  riskCategory             String?
+  officerEfficiencyScore   Decimal?       @db.Decimal(5, 2)
+  performanceMetrics       Json?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+  complaint                Complaint      @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  aiModelOutput            AIModelOutput? @relation(fields: [aiModelOutputId], references: [id], onDelete: SetNull)
+
+  @@index([complaintId])
+  @@index([modelName])
+  @@index([riskCategory])
 }

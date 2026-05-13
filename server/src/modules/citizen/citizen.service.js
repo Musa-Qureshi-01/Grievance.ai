@@ -15,6 +15,8 @@ export async function getCitizenProfile(userId) {
       include: {
         department: true,
         statusHistory: { orderBy: { createdAt: 'desc' }, take: 1 },
+        aiModelOutputs: { orderBy: { createdAt: 'asc' } },
+        resolutionPredictions: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
     }),
     prisma.feedback.aggregate({ where: { userId }, _avg: { rating: true }, _count: { id: true } }),
@@ -67,6 +69,8 @@ export async function getCitizenProfile(userId) {
       department: complaint.department?.name || 'Pending routing',
       time: complaint.statusHistory[0]?.createdAt || complaint.createdAt,
       description: complaint.statusHistory[0]?.note || `Complaint ${label(complaint.status)}`,
+      estimatedResolutionHours: complaint.resolutionPredictions[0]?.estimatedResolutionHours || null,
+      aiRecommendation: complaint.aiModelOutputs.find((output) => output.modelName === 'MODEL_2_CLASSIFICATION_SEVERITY')?.aiRecommendation || null,
     })),
   };
 }

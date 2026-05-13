@@ -1,12 +1,14 @@
-import { Moon, Sun, Menu } from "lucide-react";
+import { Moon, Sun, Menu, UserCircle, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "./ui/button";
 import { motion } from "motion/react";
 import { Link, useNavigate } from "react-router";
+import { useAuth } from "../contexts/AuthContext";
 
 export function Navbar() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const { user, session, signOut } = useAuth();
 
   return (
     <motion.nav
@@ -72,11 +74,29 @@ export function Navbar() {
                 <Moon className="h-5 w-5" />
               )}
             </Button>
-            <Link to="/auth">
-              <Button className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm">
-                Login
-              </Button>
-            </Link>
+            {session && user ? (
+              <div className="hidden md:flex items-center gap-3">
+                <Link to="/citizen-dashboard/profile" className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+                  <UserCircle className="w-5 h-5" />
+                  {user.name || user.email}
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={async () => { await signOut(); navigate("/"); }}
+                  className="text-slate-500 hover:text-red-500 rounded-full"
+                  aria-label="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <Link to="/auth">
+                <Button className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm">
+                  Login
+                </Button>
+              </Link>
+            )}
             <Button variant="ghost" size="icon" className="md:hidden text-slate-600 dark:text-slate-300">
               <Menu className="h-5 w-5" />
             </Button>
