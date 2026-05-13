@@ -2,10 +2,16 @@ import { Server } from 'socket.io';
 
 let io = null;
 
-export function initializeRealtime(httpServer, allowedOrigin) {
+export function initializeRealtime(httpServer, allowedOrigins) {
   io = new Server(httpServer, {
     cors: {
-      origin: allowedOrigin,
+      origin(origin, callback) {
+        if (!origin || allowedOrigins.has(origin.trim().replace(/\/+$/, ''))) {
+          return callback(null, true);
+        }
+
+        return callback(new Error(`Origin ${origin} is not allowed by Socket.IO CORS`));
+      },
       credentials: true,
     },
   });

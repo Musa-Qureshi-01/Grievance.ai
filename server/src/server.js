@@ -30,6 +30,8 @@ const parseOrigins = (origins = '') =>
     .filter(Boolean);
 
 const allowedOrigins = new Set([
+  'http://localhost:5173',
+  'http://localhost:5174',
   'http://localhost:5175',
   'https://grievance-io.vercel.app',
   ...parseOrigins(process.env.CLIENT_ORIGIN),

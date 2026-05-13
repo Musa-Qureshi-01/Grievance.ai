@@ -3,15 +3,16 @@ import { io } from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const socketUrl = apiUrl.replace(/\/api\/?$/, "");
+const socketUrl =
+  import.meta.env.VITE_SOCKET_URL || apiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "");
 
 export function useSocketUpdates(scope = "operations") {
   const queryClient = useQueryClient();
 
   useEffect(() => {
     const socket = io(socketUrl, {
-      transports: ["websocket", "polling"],
       withCredentials: true,
+      reconnectionAttempts: 5,
     });
 
     socket.emit("join:dashboard", scope);
