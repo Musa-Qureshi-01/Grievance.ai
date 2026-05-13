@@ -27,7 +27,14 @@ export interface ComplaintComment {
     author: string;
     message: string;
     createdAt: string;
-    type: "note" | "escalation" | "internal";
+    type: "note" | "escalation" | "internal" | "feedback";
+}
+
+export interface ComplaintProgressImage {
+    id: string;
+    url: string;
+    fileName?: string | null;
+    createdAt: string;
 }
 
 export interface ComplaintItem {
@@ -41,11 +48,22 @@ export interface ComplaintItem {
     slaMinutes: number;
     status: ComplaintStatus;
     assignedOfficer: string;
+    assignedOfficerId?: string | null;
+    canShareProgress?: boolean;
     createdAt: string;
     summary: string;
     aiRecommendation: string;
+    aiModels?: Array<{
+        modelName: string;
+        label: string;
+        status: string;
+        confidence?: number;
+        summary?: string | null;
+    }>;
     tags: string[];
     comments: ComplaintComment[];
+    images?: ComplaintProgressImage[];
+    feedback?: ComplaintComment[];
 }
 
 export interface ActivityEvent {

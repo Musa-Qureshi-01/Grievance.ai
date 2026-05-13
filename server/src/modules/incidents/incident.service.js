@@ -18,6 +18,7 @@ export async function listIncidents(currentUser) {
 
   return incidents.map((incident) => ({
     id: incident.id,
+    complaintId: incident.complaint?.id || null,
     type: incident.complaint?.department?.name || incident.complaint?.predictions[0]?.category || 'General',
     title: incident.complaint?.title || 'Incident',
     priority: label(incident.severity),

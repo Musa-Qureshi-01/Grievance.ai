@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
@@ -13,9 +14,11 @@ import citizenRoutes from './modules/citizen/citizen.routes.js';
 import publicRoutes from './modules/public/public.routes.js';
 import speechRoutes from './modules/speech/speech.routes.js';
 import whatsappRoutes from './modules/whatsapp/whatsapp.routes.js';
+import aiRoutes from './modules/ai/ai.routes.js';
 import { prisma } from './prisma/client.js';
 import { errorMiddleware, notFoundHandler } from './middleware/error.middleware.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { initializeRealtime } from './services/realtime.service.js';
 
 dotenv.config();
 
@@ -48,7 +51,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '25mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan('dev'));
 app.use(requestLogger);
@@ -78,6 +81,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/speech', speechRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
@@ -88,7 +92,10 @@ app.use('/api/citizen', citizenRoutes);
 app.use(notFoundHandler);
 app.use(errorMiddleware);
 
-const server = app.listen(port, () => {
+const httpServer = http.createServer(app);
+initializeRealtime(httpServer, allowedOrigin);
+
+const server = httpServer.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
 

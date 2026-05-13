@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { complaintService } from "../../services/complaint.service";
 import { useCurrentUser } from "../../hooks/useAuth";
+import { useSocketUpdates } from "./useSocketUpdates";
 import { aiSuggestions as baseSuggestions } from "../services/operations-data";
 import type {
   ActivityEvent,
@@ -26,9 +27,12 @@ interface RealtimeState {
   lastUpdated: string;
   isLive: boolean;
   isUpdating: boolean;
+  isOfficerReady: boolean;
   assignComplaint: (complaintId: string) => void;
   startComplaint: (complaintId: string) => void;
   resolveComplaint: (complaintId: string) => void;
+  shareProgress: (complaintId: string, payload: { comment?: string; imageUrl?: string; fileName?: string; status?: "assigned" | "in_progress" | "resolved" }) => void;
+  downloadReport: (complaintId: string) => void;
   activeComplaintId: string | null;
 }
 
@@ -95,6 +99,7 @@ function mapActivityType(status: string): ActivityEvent["type"] {
 
 export function useRealtimeComplaints(): RealtimeState {
   const queryClient = useQueryClient();
+  useSocketUpdates("operations");
   const { data: currentUser } = useCurrentUser();
   const { data, dataUpdatedAt } = useQuery({
     queryKey: ["officer", "complaints"],
@@ -112,12 +117,30 @@ export function useRealtimeComplaints(): RealtimeState {
     },
   });
 
+  const progressMutation = useMutation({
+    mutationFn: ({ complaintId, payload }: { complaintId: string; payload: { comment?: string; imageUrl?: string; fileName?: string; status?: "assigned" | "in_progress" | "resolved" } }) =>
+      complaintService.addProgress(complaintId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["officer", "complaints"] });
+      queryClient.invalidateQueries({ queryKey: ["complaints"] });
+      queryClient.invalidateQueries({ queryKey: ["citizen", "profile"] });
+    },
+  });
+
   const complaints = useMemo<ComplaintItem[]>(() => {
     const items = data?.items ?? [];
 
     return items.map((complaint: any) => {
       const priority = String(complaint.priority || "MEDIUM").toLowerCase();
       const statusHistory = complaint.statusHistory?.[0];
+      const model1 = complaint.aiModelOutputs?.find((output: any) => output.modelName === "MODEL_1_AUTHENTICITY_PRIORITY");
+      const model2 = complaint.aiModelOutputs?.find((output: any) => output.modelName === "MODEL_2_CLASSIFICATION_SEVERITY");
+      const savedPrediction = complaint.predictions?.[0];
+      const resolution = complaint.resolutionPredictions?.[0];
+      const confidenceScore = Number(model2?.confidenceScore || model1?.confidenceScore || complaint.predictions?.[0]?.priorityConfidence || complaint.prediction?.priority_confidence || 75);
+      const estimatedHours = Number(model2?.estimatedResolutionHours || resolution?.estimatedResolutionHours || 24);
+      const isAssignedToCurrentOfficer = Boolean(currentUser?.id && complaint.assignedOfficerId === currentUser.id);
+      const canShareProgress = isAssignedToCurrentOfficer && !["RESOLVED", "CLOSED", "REJECTED"].includes(complaint.status);
 
       return {
         id: complaint.id,
@@ -125,46 +148,82 @@ export function useRealtimeComplaints(): RealtimeState {
         ward: complaint.department?.name || "General ward",
         location: extractLocation(complaint.description),
         category: extractCategory(complaint.description),
-        confidence: Math.min(
-          1,
-          Math.max(
-            0.45,
-            Number(complaint.predictions?.[0]?.priorityConfidence || complaint.prediction?.priority_confidence || 75) / 100,
-          ),
-        ),
+        confidence: Math.min(1, Math.max(0.45, confidenceScore / 100)),
         priority: priority.charAt(0).toUpperCase() + priority.slice(1),
         slaMinutes: Math.max(
           0,
-          1440 - Math.round((Date.now() - new Date(complaint.createdAt).getTime()) / 60000),
+          estimatedHours * 60 - Math.round((Date.now() - new Date(complaint.createdAt).getTime()) / 60000),
         ),
         status: mapStatus(complaint.status),
         assignedOfficer: complaint.assignedOfficer?.name || "Unassigned",
+        assignedOfficerId: complaint.assignedOfficerId,
+        canShareProgress,
         createdAt: formatRelativeDate(complaint.createdAt),
         summary: complaint.description.slice(0, 160),
         aiRecommendation:
-          complaint.status === "RESOLVED" || complaint.status === "CLOSED"
+          model2?.aiRecommendation ||
+          model1?.aiRecommendation ||
+          (complaint.status === "RESOLVED" || complaint.status === "CLOSED"
             ? "Work completed and ready for citizen confirmation."
             : complaint.department?.name
               ? `Route work through ${complaint.department.name} and keep the citizen updated.`
-              : "Assign an officer and route the complaint to the right department.",
+              : "Assign an officer and route the complaint to the right department."),
+        aiModels: [
+          model1
+            ? {
+                modelName: model1.modelName,
+                label: "Model 1",
+                status: model1.status,
+                confidence: Number(model1.confidenceScore || 0),
+                summary: model1.severityAnalysis,
+              }
+            : savedPrediction && {
+                modelName: "MODEL_1_AUTHENTICITY_PRIORITY",
+                label: "Model 1",
+                status: "COMPLETED",
+                confidence: Number(savedPrediction.priorityConfidence || savedPrediction.validityConfidence || 0),
+                summary: `Validity: ${savedPrediction.validity || "Pending"}; priority: ${savedPrediction.priority || "Pending"}; trust score: ${savedPrediction.trustScore ?? "Pending"}.`,
+              },
+          model2 && {
+            modelName: model2.modelName,
+            label: "Model 2",
+            status: model2.status,
+            confidence: Number(model2.confidenceScore || 0),
+            summary: model2.severityAnalysis || model2.escalationRecommendation,
+          },
+        ].filter(Boolean) as any,
         tags: [
           complaint.priority?.toLowerCase?.() || "medium",
-          complaint.department?.name?.toLowerCase?.() || "unrouted",
+          model2?.riskCategory?.toLowerCase?.() || complaint.department?.name?.toLowerCase?.() || "unrouted",
+          model2?.suggestedDepartment?.toLowerCase?.() || "model-2-pending",
         ],
-        comments: statusHistory?.note
-          ? [
-              {
-                id: statusHistory.id,
-                author: complaint.assignedOfficer?.name || "Operations Desk",
-                message: statusHistory.note,
-                createdAt: formatRelativeDate(statusHistory.createdAt),
-                type: "note" as const,
-              },
-            ]
+        comments: (complaint.statusHistory || [])
+          .filter((entry: any) => entry.note)
+          .map((entry: any) => ({
+            id: entry.id,
+            author: entry.changedBy?.name || complaint.assignedOfficer?.name || "Operations Desk",
+            message: entry.note,
+            createdAt: formatRelativeDate(entry.createdAt),
+            type: "note" as const,
+          })),
+        images: (complaint.attachments || []).map((attachment: any) => ({
+          id: attachment.id,
+          url: attachment.fileUrl,
+          fileName: attachment.fileName,
+          createdAt: formatRelativeDate(attachment.createdAt),
+        })),
+        feedback: isAssignedToCurrentOfficer
+          ? (complaint.feedback || []).map((feedback: any) => ({
+              id: feedback.id,
+              author: feedback.user?.name || "Citizen",
+              message: `${feedback.rating}/5${feedback.review ? ` - ${feedback.review}` : ""}`,
+              createdAt: formatRelativeDate(feedback.createdAt),
+              type: "feedback" as const,
+            }))
           : [],
       };
     });
-  }, [data?.items]);
+  }, [currentUser?.id, data?.items]);
 
   const kpis = useMemo<KPIStat[]>(() => {
     const active = complaints.filter((item) => !["Resolved", "Closed", "Rejected"].includes(item.status)).length;
@@ -205,7 +264,7 @@ export function useRealtimeComplaints(): RealtimeState {
   const lastUpdated = dataUpdatedAt ? formatRelativeDate(new Date(dataUpdatedAt).toISOString()) : "just now";
 
   const assignComplaint = (complaintId: string) => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || currentUser.role !== "officer") return;
     statusMutation.mutate({
       complaintId,
       payload: {
@@ -236,6 +295,22 @@ export function useRealtimeComplaints(): RealtimeState {
     });
   };
 
+  const shareProgress = (complaintId: string, payload: { comment?: string; imageUrl?: string; fileName?: string; status?: "assigned" | "in_progress" | "resolved" }) => {
+    progressMutation.mutate({ complaintId, payload });
+  };
+
+  const downloadReport = async (complaintId: string) => {
+    const blob = await complaintService.downloadWorkReport(complaintId);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `work-report-${complaintId}.html`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return useMemo(
     () => ({
       complaints,
@@ -245,11 +320,14 @@ export function useRealtimeComplaints(): RealtimeState {
       lastUpdated,
       isLive: true,
       isUpdating: statusMutation.isPending,
+      isOfficerReady: currentUser?.role === "officer" && Boolean(currentUser?.id),
       assignComplaint,
       startComplaint,
       resolveComplaint,
+      shareProgress,
+      downloadReport,
       activeComplaintId: statusMutation.variables?.complaintId ?? null,
     }),
-    [activity, complaints, kpis, lastUpdated, statusMutation.isPending, statusMutation.variables?.complaintId]
+    [activity, complaints, currentUser?.id, currentUser?.role, kpis, lastUpdated, statusMutation.isPending, statusMutation.variables?.complaintId]
   );
 }

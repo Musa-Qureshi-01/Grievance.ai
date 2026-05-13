@@ -18,8 +18,11 @@ export function OfficerOperations() {
     assignComplaint,
     startComplaint,
     resolveComplaint,
+    shareProgress,
+    downloadReport,
     activeComplaintId,
     isUpdating,
+    isOfficerReady,
   } =
     useRealtimeComplaints();
 
@@ -66,8 +69,11 @@ export function OfficerOperations() {
           onAssign={assignComplaint}
           onStart={startComplaint}
           onResolve={resolveComplaint}
+          onShareProgress={shareProgress}
+          onDownloadReport={downloadReport}
           activeComplaintId={activeComplaintId}
           isUpdating={isUpdating}
+          isOfficerReady={isOfficerReady}
         />
         <div className="space-y-6">
           <AICopilotPanel suggestions={aiSuggestions} />

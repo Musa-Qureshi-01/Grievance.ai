@@ -6,6 +6,7 @@ export const dashboardService = {
   trust: (complaintId?: string) => apiClient.get<any>("/analytics/trust", complaintId ? { complaintId } : undefined),
   incidents: () => apiClient.get<any>("/incidents"),
   users: () => apiClient.get<any>("/admin/users"),
+  officerPerformance: () => apiClient.get<any>("/admin/officers/performance"),
   citizens: (params?: Record<string, unknown>) => apiClient.get<any>("/admin/citizens", params),
   intelligence: () => apiClient.get<any>("/admin/intelligence"),
   settings: () => apiClient.get<any>("/admin/settings"),

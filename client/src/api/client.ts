@@ -68,6 +68,16 @@ class ApiClient {
     return response.data.data;
   }
 
+  async download(url: string, params?: unknown) {
+    const response = await this.client.request<Blob>({
+      method: "GET",
+      url,
+      params,
+      responseType: "blob",
+    });
+    return response.data;
+  }
+
   get<T>(url: string, params?: unknown) {
     return this.request<T>({ method: "GET", url, params });
   }
