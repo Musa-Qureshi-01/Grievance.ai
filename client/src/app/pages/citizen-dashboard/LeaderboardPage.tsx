@@ -1,13 +1,15 @@
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
 import { Trophy, Medal, Star, ArrowUpRight } from "lucide-react";
 import { dashboardService } from "../../../services/dashboard.service";
 
 export function CitizenLeaderboard() {
-    const { data } = useQuery({
-        queryKey: ["leaderboard"],
-        queryFn: dashboardService.leaderboard,
-    });
+    const [data, setData] = useState<any>(null);
+
+    useEffect(() => {
+        dashboardService.leaderboard().then(setData).catch(console.error);
+    }, []);
+
     const leaders = data?.leaders ?? [];
     const me = data?.me ?? {};
 

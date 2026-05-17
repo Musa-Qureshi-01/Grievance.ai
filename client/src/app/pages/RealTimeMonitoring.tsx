@@ -1,14 +1,16 @@
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Map, Activity, AlertTriangle, ShieldCheck, Users, Radio } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { dashboardService } from "../../services/dashboard.service";
 
 export function RealTimeMonitoring() {
-  const { data } = useQuery({
-    queryKey: ["incidents", "monitoring"],
-    queryFn: dashboardService.incidents,
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.incidents().then(setData).catch(console.error);
+  }, []);
+
   const activeIncidents = data?.items ?? [];
   const stats = data?.stats ?? {};
 
@@ -76,7 +78,7 @@ export function RealTimeMonitoring() {
           </div>
 
           <div className="space-y-3">
-            {activeIncidents.map((incident, idx) => (
+            {activeIncidents.map((incident: any, idx: number) => (
               <motion.div 
                 key={incident.id}
                 initial={{ opacity: 0, x: 20 }}

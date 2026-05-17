@@ -1,19 +1,19 @@
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Users, Shield, Database, Settings, Key, UserCheck, ShieldAlert, MoreVertical, Star, CheckCircle2, BriefcaseBusiness } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { dashboardService } from "../../services/dashboard.service";
 
 export function SuperAdminPanel() {
-  const { data } = useQuery({
-    queryKey: ["admin", "users"],
-    queryFn: dashboardService.users,
-  });
-  const { data: officerPerformance } = useQuery({
-    queryKey: ["admin", "officer-performance"],
-    queryFn: dashboardService.officerPerformance,
-  });
+  const [data, setData] = useState<any>(null);
+  const [officerPerformance, setOfficerPerformance] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.users().then(setData).catch(console.error);
+    dashboardService.officerPerformance().then(setOfficerPerformance).catch(console.error);
+  }, []);
+
   const users = data?.users ?? [];
   const stats = data?.stats ?? {};
   const officers = officerPerformance?.officers ?? [];

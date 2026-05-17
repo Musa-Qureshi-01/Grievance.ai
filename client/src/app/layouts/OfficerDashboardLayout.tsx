@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import { motion } from "motion/react";
 import { OfficerSidebar } from "../components/layout/OfficerSidebar";
@@ -14,7 +13,6 @@ export function OfficerDashboardLayout() {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isCollapsed, setIsCollapsed } = useSidebarState();
   const { data: user } = useCurrentUser();
@@ -22,7 +20,6 @@ export function OfficerDashboardLayout() {
   const handleLogout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("currentUser");
-    queryClient.clear();
     navigate("/auth", { replace: true });
   };
 

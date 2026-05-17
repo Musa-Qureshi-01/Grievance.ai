@@ -1,14 +1,11 @@
 import { useEffect } from "react";
 import { io } from "socket.io-client";
-import { useQueryClient } from "@tanstack/react-query";
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const socketUrl =
   import.meta.env.VITE_SOCKET_URL || apiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "");
 
-export function useSocketUpdates(scope = "operations") {
-  const queryClient = useQueryClient();
-
+export function useSocketUpdates(scope = "operations", onInvalidate?: () => void) {
   useEffect(() => {
     const socket = io(socketUrl, {
       withCredentials: true,
@@ -18,11 +15,11 @@ export function useSocketUpdates(scope = "operations") {
     socket.emit("join:dashboard", scope);
 
     const invalidate = () => {
-      queryClient.invalidateQueries({ queryKey: ["officer", "complaints"] });
-      queryClient.invalidateQueries({ queryKey: ["complaints"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "intelligence"] });
-      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
-      queryClient.invalidateQueries({ queryKey: ["citizen", "profile"] });
+      if (onInvalidate) {
+        onInvalidate();
+      }
+      // Dispatch custom event for components to listen to
+      window.dispatchEvent(new CustomEvent('data:invalidated', { detail: { scope } }));
     };
 
     socket.on("ai:queued", invalidate);
@@ -35,5 +32,5 @@ export function useSocketUpdates(scope = "operations") {
     return () => {
       socket.disconnect();
     };
-  }, [queryClient, scope]);
+  }, [scope, onInvalidate]);
 }

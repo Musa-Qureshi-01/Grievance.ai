@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import {
@@ -15,10 +15,12 @@ import {
 import { dashboardService } from "../../services/dashboard.service";
 
 export function OfficerWorkflow() {
-  const { data } = useQuery({
-    queryKey: ["public", "landing"],
-    queryFn: dashboardService.landing,
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.landing().then(setData).catch(console.error);
+  }, []);
+
   const workflow = data?.officerWorkflow ?? {};
   const taskQueue = workflow.taskQueue ?? [];
   const escalationAlerts = workflow.alerts ?? [];

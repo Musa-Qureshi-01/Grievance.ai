@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { dashboardService } from "../../services/dashboard.service";
@@ -15,10 +15,12 @@ import {
 } from "lucide-react";
 
 export function TrustTransparency() {
-  const { data } = useQuery({
-    queryKey: ["analytics", "trust"],
-    queryFn: () => dashboardService.trust(),
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.trust().then(setData).catch(console.error);
+  }, []);
+
   const timelineSteps = data?.timelineSteps?.length
     ? data.timelineSteps
     : [
@@ -111,7 +113,7 @@ export function TrustTransparency() {
             </h3>
 
             <div className="space-y-6">
-              {timelineSteps.map((step, index) => (
+              {timelineSteps.map((step: any, index: number) => (
                 <div key={index} className="flex gap-4">
                   {/* Timeline Line */}
                   <div className="flex flex-col items-center">

@@ -1,13 +1,14 @@
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
 import { Users, CheckCircle2, AlertCircle, Building2 } from "lucide-react";
 import { dashboardService } from "../../../services/dashboard.service";
 
 export function CitizenCommunity() {
-    const { data } = useQuery({
-        queryKey: ["citizen", "community"],
-        queryFn: dashboardService.community,
-    });
+    const [data, setData] = useState<any>(null);
+
+    useEffect(() => {
+        dashboardService.community().then(setData).catch(console.error);
+    }, []);
 
     const stats = data?.stats ?? {};
     const departments = data?.departments ?? [];

@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import {
   Github,
   Twitter,
@@ -14,10 +14,12 @@ import {
 import { dashboardService } from "../../services/dashboard.service";
 
 export function Footer() {
-  const { data } = useQuery({
-    queryKey: ["public", "landing"],
-    queryFn: dashboardService.landing,
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.landing().then(setData).catch(console.error);
+  }, []);
+
   const hero = data?.hero ?? {};
   const pipeline = data?.pipeline ?? {};
 

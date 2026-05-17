@@ -1,7 +1,6 @@
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import toast from "react-hot-toast";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     User,
     Mail,
@@ -16,24 +15,41 @@ import { Button } from "../../components/ui/button";
 import { dashboardService } from "../../../services/dashboard.service";
 
 export function CitizenProfile() {
-    const queryClient = useQueryClient();
     const [phone, setPhone] = useState("");
-    const { data } = useQuery({
-        queryKey: ["citizen", "profile"],
-        queryFn: dashboardService.citizenProfile,
-    });
+    const [profileData, setProfileData] = useState<any>(null);
+    const [isUpdating, setIsUpdating] = useState(false);
 
-    const user = data?.user ?? {};
-    const stats = data?.stats ?? {};
-    const timeline = data?.timeline ?? [];
+    const user = profileData?.user ?? {};
+    const stats = profileData?.stats ?? {};
+    const timeline = profileData?.timeline ?? [];
     const points = stats.points ?? 0;
     const accuracy = stats.accuracy ?? 0;
     const totalReports = stats.totalReports ?? 0;
-    const updateProfileMutation = useMutation({
-        mutationFn: dashboardService.updateCitizenProfile,
-        onSuccess: (updatedUser) => {
+
+    const fetchProfile = useCallback(async () => {
+        try {
+            const data = await dashboardService.citizenProfile();
+            setProfileData(data);
+        } catch (error) {
+            console.error("Failed to fetch profile:", error);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchProfile();
+    }, [fetchProfile]);
+
+    useEffect(() => {
+        setPhone(user.phone || "");
+    }, [user.phone]);
+
+    const handleUpdateProfile = useCallback(async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsUpdating(true);
+        try {
+            const updatedUser = await dashboardService.updateCitizenProfile({ phone });
             setPhone(updatedUser.phone || "");
-            queryClient.setQueryData(["citizen", "profile"], (oldData: any) => ({
+            setProfileData((oldData: any) => ({
                 ...(oldData || {}),
                 user: {
                     ...(oldData?.user || {}),
@@ -41,13 +57,14 @@ export function CitizenProfile() {
                 },
             }));
             toast.success("WhatsApp number saved");
-            queryClient.invalidateQueries({ queryKey: ["citizen", "profile"] });
-        },
-    });
-
-    useEffect(() => {
-        setPhone(user.phone || "");
-    }, [user.phone]);
+            await fetchProfile();
+        } catch (error) {
+            console.error("Failed to update profile:", error);
+            toast.error("Failed to save WhatsApp number");
+        } finally {
+            setIsUpdating(false);
+        }
+    }, [phone, fetchProfile]);
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
@@ -107,10 +124,7 @@ export function CitizenProfile() {
                         </div>
                         <form
                             className="mt-5 space-y-3"
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                updateProfileMutation.mutate({ phone });
-                            }}
+                            onSubmit={handleUpdateProfile}
                         >
                             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
                                 WhatsApp Phone
@@ -124,9 +138,9 @@ export function CitizenProfile() {
                             <Button
                                 type="submit"
                                 className="w-full"
-                                disabled={updateProfileMutation.isPending}
+                                disabled={isUpdating}
                             >
-                                {updateProfileMutation.isPending ? "Saving..." : "Save WhatsApp Number"}
+                                {isUpdating ? "Saving..." : "Save WhatsApp Number"}
                             </Button>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
                                 Use country code format, for example +91 followed by your number.

@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "motion/react";
 import { Search, Users, FileText, MessageSquare, Calendar } from "lucide-react";
 import { dashboardService } from "../../services/dashboard.service";
@@ -7,10 +6,21 @@ import { Badge } from "../components/ui/badge";
 
 export function ManageCitizens() {
   const [search, setSearch] = useState("");
-  const { data } = useQuery({
-    queryKey: ["admin", "citizens", search],
-    queryFn: () => dashboardService.citizens({ search, page: 1, limit: 20 }),
-  });
+  const [data, setData] = useState<any>(null);
+
+  const fetchCitizens = useCallback(async () => {
+    try {
+      const result = await dashboardService.citizens({ search, page: 1, limit: 20 });
+      setData(result);
+    } catch (error) {
+      console.error("Failed to fetch citizens:", error);
+    }
+  }, [search]);
+
+  useEffect(() => {
+    fetchCitizens();
+  }, [fetchCitizens]);
+
   const citizens = data?.citizens ?? [];
   const stats = data?.stats ?? {};
 

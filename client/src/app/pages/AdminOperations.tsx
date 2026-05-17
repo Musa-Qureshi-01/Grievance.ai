@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { 
   AlertTriangle, 
   MapPin, 
@@ -19,10 +19,12 @@ import { dashboardService } from "../../services/dashboard.service";
 import { complaintService } from "../../services/complaint.service";
 
 export function AdminOperations() {
-  const { data } = useQuery({
-    queryKey: ["incidents", "operations"],
-    queryFn: dashboardService.incidents,
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.incidents().then(setData).catch(console.error);
+  }, []);
+
   const activeIncidents = data?.items ?? [];
   const stats = data?.stats ?? {};
   const downloadWorkReport = async (complaintId?: string | null) => {
