@@ -27,7 +27,7 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const me = asyncHandler(async (req, res) => {
-  const user = await getCurrentUser(req.user.id);
+  const user = await getCurrentUser(req.user.id, req.user);
   return successResponse(res, user, 'Current user loaded');
 });
 

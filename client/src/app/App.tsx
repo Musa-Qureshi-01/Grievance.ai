@@ -12,12 +12,15 @@ import { OfficerIntelligence } from "./pages/officer-dashboard/IntelligencePage"
 import { OfficerLeaderboard } from "./pages/officer-dashboard/LeaderboardPage";
 import { OfficerProfile } from "./pages/officer-dashboard/ProfilePage";
 import { GovernanceDashboard } from "./pages/GovernanceDashboard";
+import { Leaderboard } from "./pages/Leaderboard";
 import { IntelligenceCenter } from "./pages/IntelligenceCenter";
 import { RealTimeMonitoring } from "./pages/RealTimeMonitoring";
 import { SuperAdminPanel } from "./pages/SuperAdminPanel";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ManageCitizens } from "./pages/ManageCitizens";
 import { AuthPage } from "./pages/AuthPage";
+import { AuthCallbackPage } from "./pages/AuthCallbackPage";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 import { CitizenOverview } from "./pages/citizen-dashboard/CitizenOverviewPage";
 import { SubmitGrievance } from "./pages/citizen-dashboard/SubmitGrievancePage";
@@ -35,9 +38,10 @@ export default function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
             {/* Citizen Dashboard */}
-            <Route path="/dashboard" element={<CitizenLayout />}>
+            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['citizen']}><CitizenLayout /></ProtectedRoute>}>
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<CitizenOverview />} />
               <Route path="submit" element={<SubmitGrievance />} />
@@ -59,10 +63,11 @@ export default function App() {
             </Route>
 
             {/* Admin Dashboard */}
-            <Route path="/admin" element={<AdminDashboardLayout />}>
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin', 'super_admin']}><AdminDashboardLayout /></ProtectedRoute>}>
               <Route index element={<Navigate to="operations" replace />} />
               <Route path="operations" element={<AdminOperations />} />
               <Route path="governance" element={<GovernanceDashboard />} />
+              <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="citizens" element={<ManageCitizens />} />
               <Route path="intelligence" element={<IntelligenceCenter />} />
               <Route path="monitoring" element={<RealTimeMonitoring />} />
@@ -75,6 +80,7 @@ export default function App() {
               <Route index element={<Navigate to="/admin/operations" replace />} />
               <Route path="operations" element={<AdminOperations />} />
               <Route path="governance" element={<GovernanceDashboard />} />
+              <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="citizens" element={<ManageCitizens />} />
               <Route path="intelligence" element={<IntelligenceCenter />} />
               <Route path="monitoring" element={<RealTimeMonitoring />} />
@@ -83,7 +89,7 @@ export default function App() {
             </Route>
 
             {/* Officer Dashboard */}
-            <Route path="/office" element={<OfficerDashboardLayout />}>
+            <Route path="/office" element={<ProtectedRoute allowedRoles={['officer', 'admin']}><OfficerDashboardLayout /></ProtectedRoute>}>
               <Route index element={<Navigate to="operations" replace />} />
               <Route path="operations" element={<OfficerOperations />} />
               <Route path="ai-workspace" element={<OfficerAIWorkspace />} />

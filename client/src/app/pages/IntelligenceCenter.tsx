@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { 
   Brain, 
   Network, 
@@ -47,10 +47,12 @@ const NodeCluster = () => (
 );
 
 export function IntelligenceCenter() {
-  const { data } = useQuery({
-    queryKey: ["admin", "intelligence"],
-    queryFn: dashboardService.intelligence,
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.intelligence().then(setData).catch(console.error);
+  }, []);
+
   const modelStatus = data?.modelStatus ?? {};
   const confidence = modelStatus.confidence ?? {};
   const clusters = data?.clusters ?? [];

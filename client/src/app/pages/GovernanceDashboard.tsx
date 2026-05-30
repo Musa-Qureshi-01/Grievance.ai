@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -28,10 +28,12 @@ import {
 } from "recharts";
 
 export function GovernanceDashboard() {
-  const { data } = useQuery({
-    queryKey: ["analytics", "governance"],
-    queryFn: dashboardService.governance,
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.governance().then(setData).catch(console.error);
+  }, []);
+
   const stats = data?.stats ?? {};
   const performanceData = data?.performanceData ?? [];
   const departmentData = data?.departmentData ?? [];

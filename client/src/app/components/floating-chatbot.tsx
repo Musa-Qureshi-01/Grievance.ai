@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { MessageSquare, X, Send, Bot, User } from "lucide-react";
 import { Button } from "./ui/button";
@@ -11,9 +10,19 @@ export function FloatingChatbot() {
     { role: "bot", content: "Hello! I am the GovOps AI Assistant. How can I help you today?" }
   ]);
   const [input, setInput] = useState("");
-  const chatMutation = useMutation({
-    mutationFn: dashboardService.analyzeComplaint,
-    onSuccess: (result) => {
+  const [isSending, setIsSending] = useState(false);
+
+  const handleSend = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    setMessages((prev) => [...prev, { role: "user", content: input }]);
+    const nextInput = input;
+    setInput("");
+    setIsSending(true);
+
+    try {
+      const result = await dashboardService.analyzeComplaint(nextInput);
       setMessages((prev) => [
         ...prev,
         {
@@ -23,18 +32,19 @@ export function FloatingChatbot() {
             : `I classified that as ${result.category} with ${result.priority} priority and ${Number(result.confidence || 0).toFixed(1)}% confidence.`,
         },
       ]);
-    },
-  });
-
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    
-    setMessages([...messages, { role: "user", content: input }]);
-    const nextInput = input;
-    setInput("");
-    chatMutation.mutate(nextInput);
-  };
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "bot",
+          content: "Sorry, I encountered an error processing your message.",
+        },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
+  }, [input]);
 
   return (
     <>

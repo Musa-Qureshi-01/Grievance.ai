@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import {
   FileText,
   Brain,
@@ -58,10 +58,12 @@ const pipelineSteps = [
 ];
 
 export function AIPipeline() {
-  const { data } = useQuery({
-    queryKey: ["public", "landing"],
-    queryFn: dashboardService.landing,
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.landing().then(setData).catch(console.error);
+  }, []);
+
   const pipeline = data?.pipeline ?? {};
   const steps = pipelineSteps.map((step) => {
     if (step.title === "Classification") return { ...step, detail: `${pipeline.accuracy ?? 0}% model confidence` };

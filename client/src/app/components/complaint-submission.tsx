@@ -1,6 +1,5 @@
 import { motion } from "motion/react";
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
 import {
   Send,
   Mic,
@@ -28,10 +27,10 @@ export function ComplaintSubmission() {
     summary: string;
   } | null>(null);
 
-  const analyzeMutation = useMutation({
-    mutationFn: dashboardService.analyzeComplaint,
-    onMutate: () => setIsProcessing(true),
-    onSuccess: (result) => {
+  const handleSubmit = useCallback(async () => {
+    setIsProcessing(true);
+    try {
+      const result = await dashboardService.analyzeComplaint(complaint);
       setAnalysis({
         language: result.language,
         category: result.category,
@@ -39,13 +38,12 @@ export function ComplaintSubmission() {
         confidence: Number(result.confidence || 0),
         summary: result.summary,
       });
-    },
-    onSettled: () => setIsProcessing(false),
-  });
-
-  const handleSubmit = () => {
-    analyzeMutation.mutate(complaint);
-  };
+    } catch (error) {
+      console.error("Failed to analyze complaint:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [complaint]);
 
   const speech = useAzureSpeech({
     language: speechLanguage,

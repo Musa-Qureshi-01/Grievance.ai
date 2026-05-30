@@ -4,6 +4,7 @@ import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+
 import authRoutes from './modules/auth/auth.routes.js';
 import complaintRoutes from './modules/complaints/complaint.routes.js';
 import analyticsRoutes from './modules/analytics/analytics.routes.js';
@@ -15,14 +16,23 @@ import publicRoutes from './modules/public/public.routes.js';
 import speechRoutes from './modules/speech/speech.routes.js';
 import whatsappRoutes from './modules/whatsapp/whatsapp.routes.js';
 import aiRoutes from './modules/ai/ai.routes.js';
+
 import { prisma } from './prisma/client.js';
-import { errorMiddleware, notFoundHandler } from './middleware/error.middleware.js';
+import {
+  errorMiddleware,
+  notFoundHandler,
+} from './middleware/error.middleware.js';
+
 import { requestLogger } from './middleware/requestLogger.js';
 import { initializeRealtime } from './services/realtime.service.js';
 
 const app = express();
+
 const port = process.env.PORT || 5000;
-const normalizeOrigin = (origin = '') => origin.trim().replace(/\/+$/, '');
+
+const normalizeOrigin = (origin = '') =>
+  origin.trim().replace(/\/+$/, '');
+
 const parseOrigins = (origins = '') =>
   origins
     .split(',')
@@ -34,11 +44,15 @@ const allowedOrigins = new Set([
   'http://localhost:5174',
   'http://localhost:5175',
   'https://grievance-io.vercel.app',
+  'https://grievance-ai-ui.web.app',
   ...parseOrigins(process.env.CLIENT_ORIGIN),
   ...parseOrigins(process.env.CLIENT_ORIGINS),
 ]);
 
+// Security
 app.use(helmet());
+
+// CORS
 app.use(
   cors({
     origin(origin, callback) {
@@ -46,16 +60,40 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+      return callback(
+        new Error(`Origin ${origin} is not allowed by CORS`)
+      );
     },
     credentials: true,
-  }),
+  })
 );
-app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '25mb' }));
-app.use(express.urlencoded({ extended: false }));
+
+// Body parsers
+app.use(
+  express.json({
+    limit: process.env.JSON_BODY_LIMIT || '25mb',
+  })
+);
+
+app.use(
+  express.urlencoded({
+    extended: false,
+  })
+);
+
+// Logging
 app.use(morgan('dev'));
 app.use(requestLogger);
 
+// Root Route
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Grievance AI Backend Running',
+  });
+});
+
+// Health Check
 app.get('/health', async (req, res, next) => {
   try {
     const [userCount, complaintCount] = await Promise.all([
@@ -77,6 +115,7 @@ app.get('/health', async (req, res, next) => {
   }
 });
 
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/speech', speechRoutes);
@@ -89,19 +128,30 @@ app.use('/api/incidents', incidentRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/citizen', citizenRoutes);
 
+// 404 Handler
 app.use(notFoundHandler);
+
+// Error Handler
 app.use(errorMiddleware);
 
+// HTTP Server
 const httpServer = http.createServer(app);
+
+// Realtime Initialization
 initializeRealtime(httpServer, allowedOrigins);
 
+// Start Server
 const server = httpServer.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`🚀 Server running on port ${port}`);
 });
 
+// Graceful Shutdown
 process.on('SIGINT', async () => {
   await prisma.$disconnect();
-  server.close(() => process.exit(0));
+
+  server.close(() => {
+    process.exit(0);
+  });
 });
 
 export default app;

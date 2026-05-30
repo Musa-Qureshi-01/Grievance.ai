@@ -7,7 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const { user, session, signUp, signIn, loading: authLoading } = useAuth();
+  const { user, session, signUp, signIn, signInWithGoogle, loading: authLoading } = useAuth();
 
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [role, setRole] = useState<"citizen" | "officer" | "admin">("citizen");
@@ -19,6 +19,16 @@ export function AuthPage() {
     if (r === "officer") return "/office";
     if (r === "admin") return "/admin";
     return "/dashboard";
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    try {
+      localStorage.setItem("govops_role", role); // Save the selected role for dashboard redirect upon return
+      await signInWithGoogle();
+    } catch (err: any) {
+      setError(err?.message || "Google authentication failed");
+    }
   };
 
   // If already authenticated, redirect to dashboard
@@ -269,6 +279,34 @@ export function AuthPage() {
                 </Button>
               </div>
             </form>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-300 dark:border-slate-700" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white dark:bg-slate-900 text-slate-500">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 h-11 text-sm font-medium"
+              onClick={handleGoogleSignIn}
+            >
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+                <g transform="matrix(1, 0, 0, 1, 0, 0)">
+                  <path d="M21.35,11.1H12v2.7h5.38c-0.24,1.28 -0.96,2.37 -2.04,3.1v2.58h3.3c1.93,-1.78 3.04,-4.4 3.04,-7.45c0,-0.32 -0.03,-0.64 -0.09,-0.93Z" fill="#4285F4" />
+                  <path d="M12,20.62c2.43,0 4.47,-0.8 5.96,-2.18l-3.3,-2.58c-0.91,0.61 -2.08,0.98 -3.3,0.98c-2.33,0 -4.3,-1.57 -5,-3.69H2.92v2.66c1.48,2.94 4.51,4.81 7.08,4.81Z" fill="#34A853" />
+                  <path d="M7,13.15c-0.18,-0.52 -0.28,-1.08 -0.28,-1.65c0,-0.57 0.1,-1.13 0.28,-1.65V7.19H2.92c-0.62,1.24 -0.98,2.64 -0.98,4.31c0,1.67 0.36,3.07 0.98,4.31L7,13.15Z" fill="#FBBC05" />
+                  <path d="M12,6.21c1.32,0 2.5,0.45 3.44,1.35l2.58,-2.58C16.47,3.5 14.43,2.7 12,2.7C9.43,2.7 6.4,4.57 2.92,7.19l4.08,4.31C7.7,9.38 9.67,6.21 12,6.21Z" fill="#EA4335" />
+                </g>
+              </svg>
+              Continue with Google
+            </Button>
 
             <div className="mt-6">
               <div className="relative">

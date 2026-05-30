@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -98,34 +97,57 @@ function mapActivityType(status: string): ActivityEvent["type"] {
 }
 
 export function useRealtimeComplaints(): RealtimeState {
-  const queryClient = useQueryClient();
-  useSocketUpdates("operations");
+  const [data, setData] = useState<any>(null);
+  const [dataUpdatedAt, setDataUpdatedAt] = useState<number>(Date.now());
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [activeComplaintId, setActiveComplaintId] = useState<string | null>(null);
   const { data: currentUser } = useCurrentUser();
-  const { data, dataUpdatedAt } = useQuery({
-    queryKey: ["officer", "complaints"],
-    queryFn: () => complaintService.list({ page: 1, limit: 50 }),
-    refetchInterval: 15000,
-  });
 
-  const statusMutation = useMutation({
-    mutationFn: ({ complaintId, payload }: { complaintId: string; payload: Record<string, unknown> }) =>
-      complaintService.update(complaintId, payload as never),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["officer", "complaints"] });
-      queryClient.invalidateQueries({ queryKey: ["complaints"] });
-      queryClient.invalidateQueries({ queryKey: ["citizen", "profile"] });
-    },
-  });
+  const fetchData = useCallback(async () => {
+    try {
+      const result = await complaintService.list({ page: 1, limit: 50 });
+      setData(result);
+      setDataUpdatedAt(Date.now());
+    } catch (error) {
+      console.error("Failed to fetch complaints:", error);
+    }
+  }, []);
 
-  const progressMutation = useMutation({
-    mutationFn: ({ complaintId, payload }: { complaintId: string; payload: { comment?: string; imageUrl?: string; fileName?: string; status?: "assigned" | "in_progress" | "resolved" } }) =>
-      complaintService.addProgress(complaintId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["officer", "complaints"] });
-      queryClient.invalidateQueries({ queryKey: ["complaints"] });
-      queryClient.invalidateQueries({ queryKey: ["citizen", "profile"] });
-    },
-  });
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 15000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  useSocketUpdates("operations", fetchData);
+
+  const updateStatus = useCallback(async (complaintId: string, payload: Record<string, unknown>) => {
+    setIsUpdating(true);
+    setActiveComplaintId(complaintId);
+    try {
+      await complaintService.update(complaintId, payload as never);
+      await fetchData();
+    } catch (error) {
+      console.error("Failed to update complaint:", error);
+    } finally {
+      setIsUpdating(false);
+      setActiveComplaintId(null);
+    }
+  }, [fetchData]);
+
+  const addProgress = useCallback(async (complaintId: string, payload: { comment?: string; imageUrl?: string; fileName?: string; status?: "assigned" | "in_progress" | "resolved" }) => {
+    setIsUpdating(true);
+    setActiveComplaintId(complaintId);
+    try {
+      await complaintService.addProgress(complaintId, payload);
+      await fetchData();
+    } catch (error) {
+      console.error("Failed to add progress:", error);
+    } finally {
+      setIsUpdating(false);
+      setActiveComplaintId(null);
+    }
+  }, [fetchData]);
 
   const complaints = useMemo<ComplaintItem[]>(() => {
     const items = data?.items ?? [];
@@ -265,38 +287,29 @@ export function useRealtimeComplaints(): RealtimeState {
 
   const assignComplaint = (complaintId: string) => {
     if (!currentUser?.id || currentUser.role !== "officer") return;
-    statusMutation.mutate({
-      complaintId,
-      payload: {
-        status: "assigned",
-        assignedOfficerId: currentUser.id,
-        note: `Assigned to ${currentUser.name || "current officer"}`,
-      },
+    updateStatus(complaintId, {
+      status: "assigned",
+      assignedOfficerId: currentUser.id,
+      note: `Assigned to ${currentUser.name || "current officer"}`,
     });
   };
 
   const startComplaint = (complaintId: string) => {
-    statusMutation.mutate({
-      complaintId,
-      payload: {
-        status: "in_progress",
-        note: "Officer has started working on this complaint.",
-      },
+    updateStatus(complaintId, {
+      status: "in_progress",
+      note: "Officer has started working on this complaint.",
     });
   };
 
   const resolveComplaint = (complaintId: string) => {
-    statusMutation.mutate({
-      complaintId,
-      payload: {
-        status: "resolved",
-        note: "Work completed by the assigned officer.",
-      },
+    updateStatus(complaintId, {
+      status: "resolved",
+      note: "Work completed by the assigned officer.",
     });
   };
 
   const shareProgress = (complaintId: string, payload: { comment?: string; imageUrl?: string; fileName?: string; status?: "assigned" | "in_progress" | "resolved" }) => {
-    progressMutation.mutate({ complaintId, payload });
+    addProgress(complaintId, payload);
   };
 
   const downloadReport = async (complaintId: string) => {
@@ -319,15 +332,15 @@ export function useRealtimeComplaints(): RealtimeState {
       aiSuggestions: baseSuggestions,
       lastUpdated,
       isLive: true,
-      isUpdating: statusMutation.isPending,
+      isUpdating,
       isOfficerReady: currentUser?.role === "officer" && Boolean(currentUser?.id),
       assignComplaint,
       startComplaint,
       resolveComplaint,
       shareProgress,
       downloadReport,
-      activeComplaintId: statusMutation.variables?.complaintId ?? null,
+      activeComplaintId,
     }),
-    [activity, complaints, currentUser?.id, currentUser?.role, kpis, lastUpdated, statusMutation.isPending, statusMutation.variables?.complaintId]
+    [activity, complaints, currentUser?.id, currentUser?.role, kpis, lastUpdated, isUpdating, activeComplaintId, assignComplaint, startComplaint, resolveComplaint, shareProgress]
   );
 }

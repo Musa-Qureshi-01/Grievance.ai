@@ -1,7 +1,6 @@
 import { motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import {
     Plus,
@@ -22,43 +21,88 @@ import { useCurrentUser } from "../../../hooks/useAuth";
 import { complaintService } from "../../../services/complaint.service";
 
 export function CitizenOverview() {
-    const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
     const [feedbackRating, setFeedbackRating] = useState(5);
     const [feedbackReview, setFeedbackReview] = useState("");
+    const [complaints, setComplaints] = useState<any[]>([]);
+    const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+    const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
     const { data: user } = useCurrentUser();
-    const { data } = useQuery({
-        queryKey: ["complaints", "mine", searchTerm],
-        queryFn: () => complaintService.list({ page: 1, limit: 20, search: searchTerm || undefined }),
-        refetchInterval: 15000,
-    });
-    const { data: selectedComplaint, isFetching: isLoadingDetails } = useQuery({
-        queryKey: ["complaints", "detail", selectedComplaintId],
-        queryFn: () => complaintService.getById(selectedComplaintId as string),
-        enabled: Boolean(selectedComplaintId),
-        refetchInterval: selectedComplaintId ? 15000 : false,
-    });
-    const deleteMutation = useMutation({
-        mutationFn: complaintService.delete,
-        onSuccess: (_, deletedId) => {
+
+    const fetchComplaints = useCallback(async () => {
+        try {
+            const result = await complaintService.list({ page: 1, limit: 20, search: searchTerm || undefined });
+            setComplaints(result.items || []);
+        } catch (error) {
+            console.error("Failed to fetch complaints:", error);
+        }
+    }, [searchTerm]);
+
+    const fetchComplaintDetails = useCallback(async (id: string) => {
+        setIsLoadingDetails(true);
+        try {
+            const result = await complaintService.getById(id);
+            setSelectedComplaint(result);
+        } catch (error) {
+            console.error("Failed to fetch complaint details:", error);
+        } finally {
+            setIsLoadingDetails(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchComplaints();
+        const interval = setInterval(fetchComplaints, 15000);
+        return () => clearInterval(interval);
+    }, [fetchComplaints]);
+
+    useEffect(() => {
+        if (selectedComplaintId) {
+            fetchComplaintDetails(selectedComplaintId);
+            const interval = setInterval(() => fetchComplaintDetails(selectedComplaintId), 15000);
+            return () => clearInterval(interval);
+        } else {
+            setSelectedComplaint(null);
+        }
+    }, [selectedComplaintId, fetchComplaintDetails]);
+
+    const handleDelete = useCallback(async (id: string) => {
+        const confirmed = window.confirm("Delete this complaint permanently?");
+        if (!confirmed) return;
+        setIsDeleting(true);
+        try {
+            await complaintService.delete(id);
             toast.success("Complaint deleted");
-            if (selectedComplaintId === deletedId) setSelectedComplaintId(null);
-            queryClient.invalidateQueries({ queryKey: ["complaints", "mine"] });
-            queryClient.invalidateQueries({ queryKey: ["citizen", "profile"] });
-        },
-    });
-    const feedbackMutation = useMutation({
-        mutationFn: ({ id, rating, review }: { id: string; rating: number; review: string }) =>
-            complaintService.addFeedback(id, { rating, review }),
-        onSuccess: () => {
+            if (selectedComplaintId === id) setSelectedComplaintId(null);
+            await fetchComplaints();
+        } catch (error) {
+            console.error("Failed to delete complaint:", error);
+            toast.error("Failed to delete complaint");
+        } finally {
+            setIsDeleting(false);
+        }
+    }, [selectedComplaintId, fetchComplaints]);
+
+    const handleFeedback = useCallback(async () => {
+        if (!selectedComplaint) return;
+        setIsSubmittingFeedback(true);
+        try {
+            await complaintService.addFeedback(selectedComplaint.id, { rating: feedbackRating, review: feedbackReview });
             toast.success("Feedback shared with officer");
             setFeedbackReview("");
-            queryClient.invalidateQueries({ queryKey: ["complaints", "detail", selectedComplaintId] });
-            queryClient.invalidateQueries({ queryKey: ["complaints", "mine"] });
-        },
-    });
-    const complaints = data?.items ?? [];
+            await fetchComplaintDetails(selectedComplaint.id);
+            await fetchComplaints();
+        } catch (error) {
+            console.error("Failed to submit feedback:", error);
+            toast.error("Failed to submit feedback");
+        } finally {
+            setIsSubmittingFeedback(false);
+        }
+    }, [selectedComplaint, feedbackRating, feedbackReview, fetchComplaintDetails, fetchComplaints]);
+
     const activeCount = complaints.filter((item) => !["RESOLVED", "CLOSED", "REJECTED"].includes(item.status)).length;
     const resolvedCount = complaints.filter((item) => ["RESOLVED", "CLOSED"].includes(item.status)).length;
     const selectedModel1 = useMemo(
@@ -85,12 +129,6 @@ export function CitizenOverview() {
         [selectedComplaint],
     );
     const isCompletedStatus = (status: string) => ["RESOLVED", "CLOSED"].includes(status);
-
-    const handleDelete = (id: string) => {
-        const confirmed = window.confirm("Delete this complaint permanently?");
-        if (!confirmed) return;
-        deleteMutation.mutate(id);
-    };
 
     const downloadWorkReport = async (id: string) => {
         const blob = await complaintService.downloadWorkReport(id);
@@ -178,7 +216,7 @@ export function CitizenOverview() {
                         </div>
                     </div>
                     <div className="text-4xl font-bold text-slate-900 dark:text-white">
-                        {data?.pagination?.total ? `#${data.pagination.total}` : "Pending"}
+                        {complaints.length ? `#${complaints.length}` : "Pending"}
                     </div>
                 </motion.div>
             </div>
@@ -274,7 +312,7 @@ export function CitizenOverview() {
                                             variant="ghost"
                                             size="sm"
                                             className="mt-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
-                                            disabled={deleteMutation.isPending}
+                                            disabled={isDeleting}
                                             onClick={(event) => {
                                                 event.stopPropagation();
                                                 handleDelete(complaint.id);
@@ -494,12 +532,8 @@ export function CitizenOverview() {
                                             </div>
                                             <Button
                                                 size="sm"
-                                                disabled={feedbackMutation.isPending}
-                                                onClick={() => feedbackMutation.mutate({
-                                                    id: selectedComplaint.id,
-                                                    rating: feedbackRating,
-                                                    review: feedbackReview,
-                                                })}
+                                                disabled={isSubmittingFeedback}
+                                                onClick={handleFeedback}
                                             >
                                                 <Send className="mr-2 h-4 w-4" />
                                                 Send
@@ -523,7 +557,7 @@ export function CitizenOverview() {
                                         ) : (
                                             <Button
                                                 className="bg-red-600 hover:bg-red-700 text-white"
-                                                disabled={deleteMutation.isPending}
+                                                disabled={isDeleting}
                                                 onClick={() => handleDelete(selectedComplaint.id)}
                                             >
                                                 <Trash2 className="w-4 h-4 mr-2" />

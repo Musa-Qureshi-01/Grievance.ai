@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Badge } from "./ui/badge";
 import { TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { dashboardService } from "../../services/dashboard.service";
@@ -20,10 +20,12 @@ import {
 } from "recharts";
 
 export function DashboardPreview() {
-  const { data } = useQuery({
-    queryKey: ["analytics", "dashboard-preview"],
-    queryFn: dashboardService.dashboard,
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.dashboard().then(setData).catch(console.error);
+  }, []);
+
   const stats = data?.stats ?? {};
   const activityData = data?.activityData?.some((item: any) => item.complaints > 0)
     ? data.activityData

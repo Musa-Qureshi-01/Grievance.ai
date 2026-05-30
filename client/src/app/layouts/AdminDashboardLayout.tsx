@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import { motion } from "motion/react";
 import {
@@ -36,7 +35,6 @@ const sidebarLinks = [
 
 export function AdminDashboardLayout() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -44,7 +42,6 @@ export function AdminDashboardLayout() {
 
   const handleLogout = async () => {
     await signOut();
-    queryClient.clear();
     navigate("/");
   };
 

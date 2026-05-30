@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
 import toast from "react-hot-toast";
 import { Mail, Phone, MapPin, Send } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -11,15 +10,22 @@ export function CitizenContact() {
     const [requestType, setRequestType] = useState("General Inquiry");
     const [subject, setSubject] = useState("");
     const [message, setMessage] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const supportMutation = useMutation({
-        mutationFn: dashboardService.support,
-        onSuccess: () => {
+    const handleSubmit = useCallback(async () => {
+        setIsSubmitting(true);
+        try {
+            await dashboardService.support();
             toast.success("Support message submitted");
             setSubject("");
             setMessage("");
-        },
-    });
+        } catch (error) {
+            console.error("Failed to submit support request", error);
+            toast.error("Failed to submit support request");
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [requestType, subject, message, user?.email]);
 
     const names = (user?.name || "").split(" ");
     const firstName = names[0] || "";
@@ -95,15 +101,7 @@ export function CitizenContact() {
                         </h2>
                         <form
                             className="space-y-6"
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                supportMutation.mutate({
-                                    requestType,
-                                    subject,
-                                    message,
-                                    email: user?.email,
-                                });
-                            }}
+                            onSubmit={handleSubmit}
                         >
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div>
@@ -184,10 +182,10 @@ export function CitizenContact() {
                             </div>
 
                             <Button
-                                disabled={supportMutation.isPending}
+                                disabled={isSubmitting}
                                 className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-6 text-md font-medium"
                             >
-                                {supportMutation.isPending ? "Sending..." : "Send Message"}
+                                {isSubmitting ? "Sending..." : "Send Message"}
                                 <Send className="w-4 h-4 ml-2" />
                             </Button>
                         </form>

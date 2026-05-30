@@ -29,7 +29,7 @@ function toPublicUser(user) {
 function signToken(user) {
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role.toLowerCase() },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
     { expiresIn: TOKEN_TTL },
   );
 }
@@ -77,8 +77,23 @@ export async function loginUser({ email, password }) {
   return { user: toPublicUser(user), token };
 }
 
-export async function getCurrentUser(userId) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+export async function getCurrentUser(userId, tokenPayload) {
+  let user = await prisma.user.findUnique({ where: { id: userId } });
+  
+  if (!user && tokenPayload) {
+    // Automatically create the user in our local database if they logged in via Neon OIDC
+    const normalizedRole = normalizeRole(tokenPayload.role);
+    user = await prisma.user.create({
+      data: {
+        id: userId,
+        name: tokenPayload.name || tokenPayload.email?.split('@')[0] || 'User',
+        email: tokenPayload.email,
+        passwordHash: 'OIDC_EXTERNAL_SESSION', // Secure placeholder for OIDC users
+        role: normalizedRole,
+      },
+    });
+  }
+
   if (!user) {
     const error = new Error('User not found');
     error.statusCode = 404;

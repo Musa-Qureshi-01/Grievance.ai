@@ -1,130 +1,176 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { authService, type AuthUser } from "../../services/auth.service";
+import { neonAuthClient, getNeonJWT } from "../../lib/neon-auth";
+import { useNavigate } from "react-router";
+import { jwtDecode } from "jwt-decode";
 
-interface User extends AuthUser {
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
   emailVerified: boolean;
   image?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Session {
-  id: string;
-  userId: string;
-  token: string;
-  expiresAt: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
+  session: { token: string } | null;
   loading: boolean;
   signUp: (data: { name: string; email: string; password: string; role: string }) => Promise<{ error?: string }>;
   signIn: (data: { email: string; password: string }) => Promise<{ error?: string }>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-  refreshSession: () => Promise<void>;
+  verifyOTP: (email: string, code: string) => Promise<{ error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-function toAppUser(user: AuthUser): User {
-  const now = new Date().toISOString();
-
-  return {
-    ...user,
-    emailVerified: true,
-    image: null,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-function toSession(token: string, userId: string): Session {
-  return {
-    id: token,
-    userId,
-    token,
-    expiresAt: "",
-  };
-}
-
-function persistAuth(token: string, user: User) {
-  localStorage.setItem("authToken", token);
-  localStorage.setItem("currentUser", JSON.stringify(user));
-}
-
-function clearAuth() {
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("currentUser");
+function normalizeRole(raw: string | undefined | null): string {
+  const r = (raw || "citizen").toLowerCase().trim();
+  if (r === "user") return "citizen";
+  if (["citizen", "officer", "admin", "super_admin"].includes(r)) return r;
+  return "citizen";
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<{ token: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  const setAuthenticatedUser = useCallback((token: string, authUser: AuthUser) => {
-    const appUser = toAppUser(authUser);
-    persistAuth(token, appUser);
-    setSession(toSession(token, appUser.id));
-    setUser(appUser);
+  const syncUser = useCallback(async () => {
+    try {
+      let s = null;
+      try {
+        s = await neonAuthClient.getSession();
+      } catch (err) {
+        console.warn("getSession error:", err);
+      }
+
+      let token: string | null = null;
+      try {
+        token = await getNeonJWT();
+      } catch (err) {
+        console.warn("getNeonJWT error:", err);
+      }
+
+      if (s?.user || token) {
+        if (token) {
+          localStorage.setItem("authToken", token);
+          setSession({ token });
+        }
+
+        if (s?.user) {
+          const rawRole = (s.user as any).role || localStorage.getItem("govops_role") || "citizen";
+          setUser({
+            id: s.user.id,
+            name: s.user.name || "",
+            email: s.user.email || "",
+            role: normalizeRole(rawRole),
+            emailVerified: !!s.user.emailVerified,
+            image: s.user.image,
+          });
+        } else if (token) {
+          try {
+            const decoded: any = jwtDecode(token);
+            const rawRole = decoded.role || localStorage.getItem("govops_role") || "citizen";
+            setUser({
+              id: decoded.sub,
+              name: decoded.name || decoded.email?.split("@")[0] || "User",
+              email: decoded.email || "",
+              role: normalizeRole(rawRole),
+              emailVerified: !!decoded.email_verified,
+              image: decoded.picture,
+            });
+          } catch (decodeErr) {
+            console.error("JWT Decode error:", decodeErr);
+          }
+        }
+      } else {
+        localStorage.removeItem("authToken");
+        setSession(null);
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Session sync error:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const refreshSession = useCallback(async () => {
-    const token = localStorage.getItem("authToken");
-
-    if (!token) {
-      clearAuth();
-      setSession(null);
-      setUser(null);
-      return;
-    }
-
-    try {
-      const currentUser = await authService.me();
-      setAuthenticatedUser(token, currentUser);
-    } catch {
-      clearAuth();
-      setSession(null);
-      setUser(null);
-    }
-  }, [setAuthenticatedUser]);
-
   useEffect(() => {
-    refreshSession().finally(() => setLoading(false));
-  }, [refreshSession]);
+    syncUser();
+  }, [syncUser]);
 
-  const signUp = useCallback(async (data: { name: string; email: string; password: string; role: string }) => {
+  const signUp = async (data: { name: string; email: string; password: string; role: string }) => {
     try {
-      const result = await authService.register(data);
-      setAuthenticatedUser(result.token, result.user);
-      return {};
+      const { data: authData, error } = await neonAuthClient.signUp.email({
+        email: data.email,
+        password: data.password,
+        name: data.name,
+      });
+      if (!error && authData?.user) {
+        localStorage.setItem("govops_role", data.role);
+        await syncUser();
+        return {};
+      }
+      return { error: error?.message || "Sign up failed" };
     } catch (err: any) {
       return { error: err?.message || "Sign up failed" };
     }
-  }, [setAuthenticatedUser]);
+  };
 
-  const signIn = useCallback(async (data: { email: string; password: string }) => {
+  const signIn = async (data: { email: string; password: string }) => {
     try {
-      const result = await authService.login(data);
-      setAuthenticatedUser(result.token, result.user);
-      return {};
+      const { data: authData, error } = await neonAuthClient.signIn.email({
+        email: data.email,
+        password: data.password,
+      });
+      if (!error && authData?.user) {
+        await syncUser();
+        return {};
+      }
+      return { error: error?.message || "Invalid credentials" };
     } catch (err: any) {
       return { error: err?.message || "Sign in failed" };
     }
-  }, [setAuthenticatedUser]);
+  };
 
-  const handleSignOut = useCallback(async () => {
+  const signInWithGoogle = async () => {
     try {
-      await authService.logout();
-    } catch {
-      // Local sign-out should still complete if the server is unreachable.
+      await neonAuthClient.signIn.social({
+        provider: "google",
+        callbackURL: window.location.origin + "/auth/callback",
+      });
+    } catch (error) {
+      console.error("Google sign-in error:", error);
     }
+  };
 
-    clearAuth();
+  const signOut = async () => {
+    await neonAuthClient.signOut();
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("govops_role");
     setSession(null);
     setUser(null);
-  }, []);
+    navigate("/");
+  };
+  
+  const verifyOTP = async (email: string, code: string) => {
+    try {
+      const { error } = await (neonAuthClient as any).verify.email({
+        email,
+        code,
+      });
+      if (!error) {
+        await syncUser();
+        return {};
+      }
+      return { error: error?.message || "Verification failed" };
+    } catch (err: any) {
+      return { error: err?.message || "Verification failed" };
+    }
+  };
 
   return (
     <AuthContext.Provider value={{
@@ -133,8 +179,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       signUp,
       signIn,
-      signOut: handleSignOut,
-      refreshSession,
+      signInWithGoogle,
+      signOut,
+      verifyOTP,
     }}>
       {children}
     </AuthContext.Provider>

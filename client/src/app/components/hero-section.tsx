@@ -2,15 +2,17 @@ import { motion } from "motion/react";
 import { ArrowRight, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { dashboardService } from "../../services/dashboard.service";
 
 export function HeroSection() {
-  const { data } = useQuery({
-    queryKey: ["public", "landing"],
-    queryFn: dashboardService.landing,
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.landing().then(setData).catch(console.error);
+  }, []);
+
   const metrics = data?.hero ?? {};
 
   return (

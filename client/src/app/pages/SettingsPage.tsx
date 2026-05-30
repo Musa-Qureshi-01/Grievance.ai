@@ -1,13 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Database, Shield, Server, Bell, Activity } from "lucide-react";
 import { dashboardService } from "../../services/dashboard.service";
 
 export function SettingsPage() {
-  const { data } = useQuery({
-    queryKey: ["admin", "settings"],
-    queryFn: dashboardService.settings,
-  });
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardService.settings().then(setData).catch(console.error);
+  }, []);
+
   const metrics = data?.metrics ?? {};
 
   return (
