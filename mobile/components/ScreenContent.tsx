@@ -21,7 +21,7 @@ export const ScreenContent: React.FC<ScreenContentProps> = ({ title, path, child
 };
 
 const styles = {
-  container: `flex flex-1 px-4 bg-white items-center justify-center`,
-  separator: `h-px w-[300px] bg-gray-200 my-7`,
+  container: `items-center flex-1 justify-center bg-white`,
+  separator: `h-[1px] my-7 w-4/5 bg-gray-200`,
   title: `text-xl font-bold`,
 };

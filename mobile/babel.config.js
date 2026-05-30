@@ -3,10 +3,10 @@ module.exports = function (api) {
   let plugins = [];
 
   plugins.push('react-native-worklets/plugin');
-  plugins.push('react-native-reanimated/plugin');
 
   return {
-    presets: ['babel-preset-expo'],
+    presets: [['babel-preset-expo', { jsxImportSource: 'nativewind' }], 'nativewind/babel'],
+
     plugins,
   };
 };
